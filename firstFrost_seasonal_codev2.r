@@ -9,14 +9,15 @@ library(data.table)
 	# names and variables
 growYearStartDate = as.Date('2022-08-15')
 dataOrigination = c('ERA5', 'CFS', 'SEAS5')
-dataPath = 'J:\\Cai_data\\Simplot\\firstFrost\\AllGreatPlains\\' 	#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains
-storeLocations = 'storLocs.csv' # NA	# either NA or a csv with store locations
-era5RecentDataName = 'SimplotAllGrtPlns-testing-recent-era.nc'
+dataPath = 'J:\\Cai_data\\Simplot\\firstFrost\\NorthernGreatPlains\\'#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains
+storeLocations = 'storLocs.csv' # NA								# either NA or a csv with store locations
+era5RecentDataName = 'SimplotNorthGrtPlns-testing-recent-era.nc'	#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
 era5ClimatologyDataName = 	'testing-climatology-era.nc'				
-cfsDataName = 				'SimplotAllGrtPlns-testing-cfs.nc'			#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
-seas5DataName = 			'SimplotAllGrtPlns-testing-seas5.nc'		#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
+cfsDataName = 				'SimplotNorthGrtPlns-testing-cfs.nc'	#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
+seas5DataName = 			'SimplotNorthGrtPlns-testing-seas5.nc'	#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
+userName = 'Simplot Mountain West' 									#'Simplot Mountain West',  'Simplot Northern Great Plains',	Simplot Great Plains
 startDateEra5 = '2022-08-01'
-startDateCfs = '2022-10-16'
+startDateCfs = '2022-10-23'
 startDateSeas5 = '2022-10-01'
 startDateClimatology = '2002-07-01'
 cfsModels = 1:4	# number of cfs models used
@@ -26,7 +27,6 @@ seas5Models = 1:51	# number of seas5 models used
 theseQuantiles = c(0.05, 0.25, 0.5, 0.75, 0.95)
 firstFrostThresholds = c(-2, -1, 0, 1)	# in C
 consecDaysThresholds = c(1, 2, 5)
-userName = 'Simplot Great Plains' 									#'Simplot Mountain West',  'Simplot Northern Great Plains',	Simplot Great Plains
 forecastDate = ncvar_get(nc_open(paste0(dataPath, cfsDataName)), 'lead_time')[1] + as.Date(startDateCfs) 
 	# test last era5
 ncvar_get(nc_open(paste0(dataPath, era5RecentDataName)), 'time') + as.Date(startDateEra5)
@@ -70,11 +70,12 @@ projectedOutput = f_projectedFirstFrost(
 
 
 historicOutput = fread(paste0(dataPath, "climatologyFirstFrost_18JUL2022.csv"))
-#historicOutput$startDate = as.IDate(mdy(historicOutput$startDate))
-#historicOutput$endDate =  as.IDate(mdy(historicOutput$endDate))
-#historicOutput$forecastDate =  as.IDate(mdy(historicOutput$forecastDate))
+historicOutput$startDate = as.IDate(mdy(historicOutput$startDate))
+historicOutput$endDate =  as.IDate(mdy(historicOutput$endDate))
+historicOutput$forecastDate =  as.IDate(mdy(historicOutput$forecastDate))
 allOutput = rbind(projectedOutput, historicOutput)
-#fwrite(allOutput, paste0(dataPath, 'firstFrost_', allOutput[1, 'User'], "_", forecastDate, '.csv'))
+fwrite(allOutput, paste0(dataPath, 'firstFrost_', allOutput[1, 'User'], "_", forecastDate, '.csv'))
+summary(projectedOutput); summary(historicOutput)
 
 
 ##	identifying user locations instead of heatmap, only needed for some users
@@ -94,8 +95,9 @@ if(!is.na(storeLocations))	{
 ## saving output
 
 fwrite(allOutput, paste0(dataPath, 'firstFrost_', allOutput[1, 'User'], "_", forecastDate, '.csv'))
+summary(projectedOutput)
+summary(historicOutput)
 ##################################################################################################
-
 
 #allOutput = fread(paste0(dataPath, 'firstFrost_', userName , "_", forecastDate, '.csv'))
 

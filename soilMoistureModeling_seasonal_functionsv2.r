@@ -187,71 +187,73 @@ f_projectedSoilMoisture = function(
 					nc_sm20[closeSMLon, closeSMLat, ], nc_sm21[closeSMLon, closeSMLat, ], nc_sm21[closeSMLon, closeSMLat, ])
 	
 				#identify the relevant row for the calibration database
-				closeCalRow = subset(calibDF, Lat == nc_latSeas5[i] & Lon == nc_lonSeas5[j])
-				if(closeCalRow$KGE > 0.4)	{
-					initialSM = last(recentSM) * rootDepth * closeCalRow$n
+				closeCalRow = subset(calibDF, Lat == nc_latSeas5[i] & Lon == nc_lonSeas5[j])[1,]
+				if(!is.na(closeCalRow[1,1]))	{
+					if(closeCalRow$KGE[1] > 0.4)	{
+						initialSM = last(recentSM) * rootDepth * closeCalRow$n
+							
+		#				incPrevSM = (which(nc_date_sm == nc_dateCfs[1]) + 1):length(nc_date_sm)
+		#				previousSM = recentSM[incPrevSM]
 					
-	#				incPrevSM = (which(nc_date_sm == nc_dateCfs[1]) + 1):length(nc_date_sm)
-	#				previousSM = recentSM[incPrevSM]
-			
-					smOutAll = matrix(nrow = (length(theseDates) + 1), ncol = (length(cfsModels) * length(seas5Models)))
-					modelIter = 0
-					for(kk in cfsModels)	{
-						for(ll in seas5Models)	{
-							# soil moisture routine
-							this_ppt  = c(nc_pptCfs[j, i, , kk],  nc_pptSeas5[j, i, , ll])	; this_ppt[is.na(this_ppt)] = 0 ; this_ppt[this_ppt < 0] = 0 # [longitude,latitude,lead_time,member] 
-							this_tmin = c(nc_tminCfs[j, i, , kk], nc_tminSeas5[j, i, , ll])	; this_tmin[is.na(this_tmin)] = mean(this_tmin)			 # [longitude,latitude,lead_time,member] 
-							this_tmax = c(nc_tmaxCfs[j, i, , kk], nc_tmaxSeas5[j, i, , ll])	; this_tmax[is.na(this_tmax)] = mean(this_tmax)	 		 # [longitude,latitude,lead_time,member] 
-							
-							# check to see if tmin is ever greater than tmax, and correct before 
-							badTmins = which(this_tmin >= this_tmax)
-							if(length(badTmins) > 0)	{
-								this_tmin[badTmins] = this_tmax[badTmins] - 0.001
+						smOutAll = matrix(nrow = (length(theseDates) + 1), ncol = (length(cfsModels) * length(seas5Models)))
+						modelIter = 0
+						for(kk in cfsModels)	{
+							for(ll in seas5Models)	{
+								# soil moisture routine
+								this_ppt  = c(nc_pptCfs[j, i, , kk],  nc_pptSeas5[j, i, , ll])	; this_ppt[is.na(this_ppt)] = 0 ; this_ppt[this_ppt < 0] = 0 # [longitude,latitude,lead_time,member] 
+								this_tmin = c(nc_tminCfs[j, i, , kk], nc_tminSeas5[j, i, , ll])	; this_tmin[is.na(this_tmin)] = mean(this_tmin)			 # [longitude,latitude,lead_time,member] 
+								this_tmax = c(nc_tmaxCfs[j, i, , kk], nc_tmaxSeas5[j, i, , ll])	; this_tmax[is.na(this_tmax)] = mean(this_tmax)	 		 # [longitude,latitude,lead_time,member] 
+									
+								# check to see if tmin is ever greater than tmax, and correct before 
+								badTmins = which(this_tmin >= this_tmax)
+								if(length(badTmins) > 0)	{
+									this_tmin[badTmins] = this_tmax[badTmins] - 0.001
+								}
+								
+								PET = PET_fromTemp(theseDoys[-1],this_tmax, this_tmin,
+											lat_radians =  min((nc_latSeas5[i]*pi/180), 1.1)) * 1000 # output in m, converting to mm
+
+								infil = infiltration_f(PPT = this_ppt,
+									crn = closeCalRow$crn,#50,
+									Smax = rootDepth * closeCalRow$n,
+									Ia_scalar = closeCalRow$Ia_scalar)#0.2)
+
+
+								sm_out = SM_routine_f(infiltration = infil, PET = PET,
+										rcScl = closeCalRow$rcScl,#0.1,	# water retention curve scalar
+										rcExp = closeCalRow$rcExp,#1.3,	# water retention curve exponent
+										PETexp = closeCalRow$PETexp, 	# max PET fraction per day
+										Zr = rootDepth,	# root depth
+										n = closeCalRow$n, #0.5,	# soil porosity
+										smhp = closeCalRow$smhp, #0.00,	# soil moisture at hydroscopic point
+										smwp = closeCalRow$smhp, #0.10,	# soil moisture at wilting point
+										smfc = closeCalRow$smfc, #0.25,	# soil moisture field capacity
+										s0 = initialSM)	# initial soil moisture 
+									
+								modelIter = modelIter + 1
+								smOutAll[,modelIter] = c(initialSM, sm_out)  / rootDepth
 							}
-						
-							PET = PET_fromTemp(theseDoys[-1],this_tmax, this_tmin,
-										lat_radians =  min((nc_latSeas5[i]*pi/180), 1.1)) * 1000 # output in m, converting to mm
-
-							infil = infiltration_f(PPT = this_ppt,
-								crn = closeCalRow$crn,#50,
-								Smax = rootDepth * closeCalRow$n,
-								Ia_scalar = closeCalRow$Ia_scalar)#0.2)
-
-
-							sm_out = SM_routine_f(infiltration = infil, PET = PET,
-									rcScl = closeCalRow$rcScl,#0.1,	# water retention curve scalar
-									rcExp = closeCalRow$rcExp,#1.3,	# water retention curve exponent
-									PETexp = closeCalRow$PETexp, 	# max PET fraction per day
-									Zr = rootDepth,	# root depth
-									n = closeCalRow$n, #0.5,	# soil porosity
-									smhp = closeCalRow$smhp, #0.00,	# soil moisture at hydroscopic point
-									smwp = closeCalRow$smhp, #0.10,	# soil moisture at wilting point
-									smfc = closeCalRow$smfc, #0.25,	# soil moisture field capacity
-									s0 = initialSM)	# initial soil moisture 
+						}
+						print(c(i,j))
+						for(mm in 1:floor(nrow(smOutAll) / 30))	{
+							thisMonthsOut = mm - 1
+							thisTimeFrame = 1:30 + (thisMonthsOut * 30)
+							theseSubDates = theseDates[thisTimeFrame]
 							
-							modelIter = modelIter + 1
-							smOutAll[,modelIter] = c(initialSM, sm_out)  / rootDepth
+							theseDOY = yday(theseSubDates)
+							theseSMhist = allSM[allSMdoys %in% theseDOY]
+								
+							iter = iter + 1
+							projQuantiles = quantile(smOutAll[thisTimeFrame, ], c(0.05, 0.25, 0.50, 0.75, 0.95), na.rm=T) * 100
+							climQuantiles = quantile(theseSMhist, c(0.05, 0.25, 0.50, 0.75, 0.95), na.rm=T) * 100
+							summaryOutput_df[iter, ] = data.frame(nc_latSeas5[i], nc_lonSeas5[j], userName,
+								rootDepth, thisMonthsOut, theseDates[1],
+								projQuantiles[1], projQuantiles[2], projQuantiles[3], projQuantiles[4], projQuantiles[5],
+								climQuantiles[1], climQuantiles[2], climQuantiles[3], climQuantiles[4], climQuantiles[5])
+									
+								
 						}
 					}
-					print(c(i,j))
-					for(mm in 1:floor(nrow(smOutAll) / 30))	{
-						thisMonthsOut = mm - 1
-						thisTimeFrame = 1:30 + (thisMonthsOut * 30)
-						theseSubDates = theseDates[thisTimeFrame]
-						
-						theseDOY = yday(theseSubDates)
-						theseSMhist = allSM[allSMdoys %in% theseDOY]
-						
-						iter = iter + 1
-						projQuantiles = quantile(smOutAll[thisTimeFrame, ], c(0.05, 0.25, 0.50, 0.75, 0.95), na.rm=T) * 100
-						climQuantiles = quantile(theseSMhist, c(0.05, 0.25, 0.50, 0.75, 0.95), na.rm=T) * 100
-						summaryOutput_df[iter, ] = data.frame(nc_latSeas5[i], nc_lonSeas5[j], userName,
-							rootDepth, thisMonthsOut, theseDates[1],
-							projQuantiles[1], projQuantiles[2], projQuantiles[3], projQuantiles[4], projQuantiles[5],
-							climQuantiles[1], climQuantiles[2], climQuantiles[3], climQuantiles[4], climQuantiles[5])
-							
-						
-						}
 				}
 			}
 		}
