@@ -9,15 +9,15 @@ library(data.table)
 	# names and variables
 growYearStartDate = as.Date('2022-08-15')
 dataOrigination = c('ERA5', 'CFS', 'SEAS5')
-dataPath = 'J:\\Cai_data\\Simplot\\firstFrost\\NorthernGreatPlains\\'#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains
+dataPath = 'J:\\Cai_data\\Simplot\\firstFrost\\AllGreatPlains\\'	#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains
 storeLocations = 'storLocs.csv' # NA								# either NA or a csv with store locations
-era5RecentDataName = 'SimplotNorthGrtPlns-testing-recent-era.nc'	#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
+era5RecentDataName = 'SimplotAllGrtPlns-testing-recent-era.nc'		#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
 era5ClimatologyDataName = 	'testing-climatology-era.nc'				
-cfsDataName = 				'SimplotNorthGrtPlns-testing-cfs.nc'	#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
-seas5DataName = 			'SimplotNorthGrtPlns-testing-seas5.nc'	#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
-userName = 'Simplot Mountain West' 									#'Simplot Mountain West',  'Simplot Northern Great Plains',	Simplot Great Plains
+cfsDataName = 				'SimplotAllGrtPlns-testing-cfs.nc'		#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
+seas5DataName = 			'SimplotAllGrtPlns-testing-seas5.nc'	#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
+userName = 'Simplot Great Plains' 									#'Simplot Mountain West',  'Simplot Northern Great Plains',	Simplot Great Plains
 startDateEra5 = '2022-08-01'
-startDateCfs = '2022-10-23'
+startDateCfs = '2022-10-30'
 startDateSeas5 = '2022-10-01'
 startDateClimatology = '2002-07-01'
 cfsModels = 1:4	# number of cfs models used
@@ -70,11 +70,11 @@ projectedOutput = f_projectedFirstFrost(
 
 
 historicOutput = fread(paste0(dataPath, "climatologyFirstFrost_18JUL2022.csv"))
-historicOutput$startDate = as.IDate(mdy(historicOutput$startDate))
-historicOutput$endDate =  as.IDate(mdy(historicOutput$endDate))
-historicOutput$forecastDate =  as.IDate(mdy(historicOutput$forecastDate))
+#historicOutput$startDate = as.IDate(mdy(historicOutput$startDate))
+#historicOutput$endDate =  as.IDate(mdy(historicOutput$endDate))
+#historicOutput$forecastDate =  as.IDate(mdy(historicOutput$forecastDate))
 allOutput = rbind(projectedOutput, historicOutput)
-fwrite(allOutput, paste0(dataPath, 'firstFrost_', allOutput[1, 'User'], "_", forecastDate, '.csv'))
+#fwrite(allOutput, paste0(dataPath, 'firstFrost_', allOutput[1, 'User'], "_", forecastDate, '.csv'))
 summary(projectedOutput); summary(historicOutput)
 
 
