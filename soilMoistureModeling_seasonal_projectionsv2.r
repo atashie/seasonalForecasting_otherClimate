@@ -15,9 +15,9 @@ smClimatologyDataYears = 2017:2022
 cfsDataName = 'AdvantaAusSW-testing-cfs.nc'
 seas5DataName = 'AdvantaAusSW-testing-seas5.nc'
 #startDateEra5 = '2022-07-01'
-startDateCfs = '2022-10-30'
+startDateCfs = '2022-11-06'
 startDateSeas5 = '2022-10-01'
-saveDate = '2022-11-07'
+saveDate = '2022-11-14'
 seas5Models = 1:51
 cfsModels = 1:4#seq(1, 43, 5)
 rootDepth = 1000 
@@ -26,9 +26,10 @@ rootDepth = 1000
 	# define the 'sortable' variables
 userName = 'Advanta'
 forecastDate = ncvar_get(nc_open(paste0(dataPath, cfsDataName)), 'lead_time')[1] + as.Date(startDateCfs) 
+ncvar_get(nc_open(paste0(dataPath, cfsDataName)), 'lead_time') + as.Date(startDateCfs) 
 	# test last seas5
 assessForecastDateSeas5 = ncvar_get(nc_open(paste0(dataPath, seas5DataName)), 'lead_time')[1] + as.Date(startDateSeas5) 
-
+ncvar_get(nc_open(paste0(dataPath, seas5DataName)), 'lead_time') + as.Date(startDateSeas5)
 
 soilMoistureOutput = f_projectedSoilMoisture(
 	dataPath = dataPath,
@@ -49,7 +50,7 @@ summaryOutput_df = fread(paste0(dataPath, "SoilMoisture_projectionOutput_", save
 library(ggplot2)
 library(viridis) 
 
-ggplot(subset(summaryOutput_df, monthsOut == 6), aes(x=Lon, y=Lat)) +
+ggplot(subset(summaryOutput_df, monthsOut == 5), aes(x=Lon, y=Lat)) +
 	geom_point(aes(colour=(projectedQ50 - climatologyQ50))) +
 	scale_colour_gradient2()
 
