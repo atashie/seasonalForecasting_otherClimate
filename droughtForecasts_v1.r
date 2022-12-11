@@ -13,6 +13,7 @@ library(maps)
 library(gganimate)
 library(transformr)
 library(gifski)
+library(mapiso)
 
 	# these file locations remain the same for all watersheds of a region
 seas5DataNCDF = 'J:\\Cai_data\\Nuveen\\surfaceWaterData_and_Output\\NuveenNorCal-testing-seas5.nc' 				# SoCal
@@ -130,62 +131,49 @@ counties <- st_as_sf(map("county", plot = FALSE, fill = TRUE))
 counties <- subset(counties, grepl("california", counties$ID))
 st_crs(counties) = st_crs(america)
 
-#head(states)
-#oceans <- expand.grid(lon = c(-118,-85), lat = c(14, 33))
-
 spei_proj = st_as_sf(fread(dataInLoc), coords=c('lon','lat'), remove=FALSE, crs=4326, agr='constant')
 spei_proj$year = floor(spei_proj$yearMonth - 1/13)
 spei_proj$month = round((spei_proj$yearMonth - spei_proj$year) * 12)
 
-borders = america#subset(world, name_sort=='Mexico')
+#borders = america#subset(world, name_sort=='Mexico')
+#borders_2 = subset(world, su_a3=='USA')[1,]
+#borders = california
+#borders = counties
 
-borders_2 = subset(world, su_a3=='USA')[1,]
+#mask <- borders %>%
+#st_bbox() %>%
+#st_as_sfc() %>%
+#st_buffer(5) %>%
+#st_difference(borders) %>%
+#st_as_sf()
+
+#borders = subset(world, subregion=='Northern America')
+#borders = subset(world, name_sort=='United States of America')
+#mask1 = st_as_sf(st_difference(borders, bbox))
+#mask2 = st_difference(bbox, st_union(st_combine(borders)))
+
+#bbox = st_buffer(st_as_sfc(st_bbox(america)), 5)
+#mask = st_difference(bbox, california)
+
 borders = subset(world, su_a3=='USA')[1,]
-
-borders = california
-borders = counties
-
-mask <- borders %>%
-st_bbox() %>%
-st_as_sfc() %>%
-st_buffer(5) %>%
-st_difference(borders) %>%
-st_as_sf()
-
-borders
-
-borders = subset(world, subregion=='Northern America')
-borders = subset(world, name_sort=='United States of America')
-
-mask1 = st_as_sf(st_difference(borders, bbox))
-
-mask2 = st_difference(bbox, st_union(st_combine(borders)))
-
-
-bbox = st_buffer(st_as_sfc(st_bbox(america)), 5)
-mask = st_difference(bbox, california)
-
-
-
-
-
 
 bbox = st_buffer(st_as_sfc(st_bbox(california)), 5)
 mask = st_as_sf(st_difference(bbox, borders))
 
-the_months = unique(spei_proj$yearMonth)
+spei_subset = subset(spei_proj, year == 2023 & month == 3)
+
 
 ggplot(data = spei_proj) +
 #	scale_colour_viridis_c(alpha = 1) +
 #	scale_colour_gradientn(colours=rev(c('#F2F3F3', '#F2F3F3', '#FFF2F2', '#FFE5E5', 'orangered1', 'red1','red3','firebrick')),name='drought') +
 	scale_colour_gradient2(low='firebrick', mid='#DBDDDF', high='#196CE1', midpoint = 0, na.value = NA, limits = c(-2,2),
-		breaks = c(-1.5, -.5, 1), labels = c('severe drought', 'drought', 'wet conditions'), name='SPEI 24 month') +
+		breaks = c(-1.5, -.5, 1), labels = c('severe drought', 'drought', 'wet conditions'), name='SPEI 12 month') +
 #	scale_colour_gradient(low='#F2F3F3', high='#B91863') +
 	geom_sf(data = california, fill = '#DBDDDF', color = '#1A232F', size=1.4) +
 	geom_sf(data = states, fill = '#DBDDDF')	+
 #	geom_sf(data = counties, fill = NA, color = gray(.5))
 #	geom_sf(data = world, fill = NA, color = gray(0.05), size=0.8) +
-	geom_sf(data = subset(spei_proj, yearMonth == the_months[length(the_months) - 6]), size=6.4, shape=15, aes(col=spei_24)) +
+	geom_sf(data = spei_subset, size=6.4, shape=15, aes(col=spei_12)) +
 #	ylim(-2,2) +
 	geom_sf(data = mask, fill='#F2F3F3', color='#F2F3F3') +
 	geom_sf(data = counties, fill = NA, color = '#666D74') +
@@ -245,6 +233,79 @@ anim_save("output.gif")
 
 
 
+spei_subset = subset(spei_proj, year == 2023 & month == 5)
+
+dataIn = fread(dataInLoc)
+theseBreaks = c(-1.3, -0.5, 0, 1)
+isoHets = mapiso(x = spei_subset, var = 'spei_24',  crs = 'epsg:4326',
+	breaks = c(-1.3, -0.5, 0, 1))
+
+
+ggplot(data = isoHets) +
+#	scale_colour_viridis_c(alpha = 1) +
+#	scale_colour_gradientn(colours=rev(c('#F2F3F3', '#F2F3F3', '#FFF2F2', '#FFE5E5', 'orangered1', 'red1','red3','firebrick')),name='drought') +
+	scale_fill_gradient2(low='firebrick', mid='#DBDDDF', high='#196CE1', midpoint = 0, na.value = NA, limits = c(-2,2),
+		breaks = c(-1.5, -.5, 1), labels = c('severe drought', 'drought', 'wet conditions'), name='SPEI 24 month') +
+#	scale_colour_gradient(low='#F2F3F3', high='#B91863') +
+	geom_sf(data = california, fill = '#DBDDDF', color = '#1A232F', size=1.4) +
+	geom_sf(data = states, fill = '#DBDDDF')	+
+#	geom_sf(data = counties, fill = NA, color = gray(.5))
+#	geom_sf(data = world, fill = NA, color = gray(0.05), size=0.8) +
+#	scale_fill_manual(name = 'Drought', 
+#		values = c('Severe Drought' = 'red4', 'Minor Drought' = 'red2', 'Dry Conditions' = 'red1', 'Wet Conditions' = 'skyblue2'))	+
+	geom_sf(data = isoHets, aes(fill=(isomin + isomax)/2)) +
+#	ylim(-2,2) +
+	geom_sf(data = mask, fill='#F2F3F3', color='#F2F3F3') +
+	geom_sf(data = counties, fill = NA, color = 'grey70') +
+	geom_sf(data = states, fill = NA, color = '#1A232F', size=1.4) +
+#	geom_sf(data = cityLocs_sf, size=4.4, stroke = 1.1, shape=21, col='white', fill='grey20')+ #c(rep('#039CE2',8), rep('#FDB600',7), '#23AF41')) +
+	theme(panel.grid = element_line(colour='#F2F3F3')) +
+	theme(panel.background = element_rect(fill = '#F2F3F3', colour='#F2F3F3')) +
+	theme(legend.position = c(0.84, 0.74),
+		legend.background = element_rect(fill='#F2F3F3', colour=NA)) +
+	coord_sf(xlim = c(-125, -117), ylim = c(34, 43), expand = FALSE)
+#	
+
+
+
+
+
+
+
+
+
+sf_use_s2(FALSE)
+spei_recon = spei_subset
+st_crs(spei_recon) = st_crs(counties)
+speiCounties <- st_join(counties, spei_recon, join = st_intersects)
+st_crs(speiCounties) = st_crs(counties)
+
+avg_spei = aggregate(spei_3 ~ ID, mean, data = speiCounties)
+avgSpeiCounties = merge(avg_spei, counties, by = 'ID')
+countySpei_sf = st_as_sf(avgSpeiCounties)
+
+ggplot(data = avgSpeiCounties) +
+#	scale_colour_viridis_c(alpha = 1) +
+#	scale_colour_gradientn(colours=rev(c('#F2F3F3', '#F2F3F3', '#FFF2F2', '#FFE5E5', 'orangered1', 'red1','red3','firebrick')),name='drought') +
+	scale_fill_gradient2(low='firebrick', mid='#DBDDDF', high='#196CE1', midpoint = 0, na.value = NA, limits = c(-2,2),
+		breaks = c(-1.5, -.5, 1), labels = c('severe drought', 'drought', 'wet conditions'), name='SPEI 3 month') +
+#	scale_colour_gradient(low='#F2F3F3', high='#B91863') +
+	geom_sf(data = california, fill = '#DBDDDF', color = '#1A232F', size=1.4) +
+	geom_sf(data = states, fill = '#DBDDDF')	+
+#	geom_sf(data = counties, fill = NA, color = gray(.5))
+#	geom_sf(data = world, fill = NA, color = gray(0.05), size=0.8) +
+	geom_sf(data = countySpei_sf, size=6.4, shape=15, aes(fill=spei_3)) +
+#	ylim(-2,2) +
+	geom_sf(data = mask, fill='#F2F3F3', color='#F2F3F3') +
+	geom_sf(data = counties, fill = NA, color = '#666D74') +
+	geom_sf(data = states, fill = NA, color = '#1A232F', size=1.4) +
+#	geom_sf(data = cityLocs_sf, size=4.4, stroke = 1.1, shape=21, col='white', fill='grey20')+ #c(rep('#039CE2',8), rep('#FDB600',7), '#23AF41')) +
+	theme(panel.grid = element_line(colour='#F2F3F3')) +
+	theme(panel.background = element_rect(fill = '#F2F3F3', colour='#F2F3F3')) +
+	theme(legend.position = c(0.84, 0.74),
+		legend.background = element_rect(fill='#F2F3F3', colour=NA)) +
+	coord_sf(xlim = c(-125, -117), ylim = c(34, 43), expand = FALSE)
+#	
 
 
 
