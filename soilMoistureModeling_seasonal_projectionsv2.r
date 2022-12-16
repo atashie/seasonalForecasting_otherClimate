@@ -50,9 +50,17 @@ summaryOutput_df = fread(paste0(dataPath, "SoilMoisture_projectionOutput_", save
 library(ggplot2)
 library(viridis) 
 
-ggplot(subset(summaryOutput_df, monthsOut == 5), aes(x=Lon, y=Lat)) +
+ggplot(subset(summaryOutput_df, monthsOut == 4), aes(x=Lon, y=Lat)) +
 	geom_point(aes(colour=(projectedQ50 - climatologyQ50))) +
 	scale_colour_gradient2()
 
 ggplot(subset(summaryOutput_df, monthsOut == 0), aes(x=Lon, y=Lat)) + geom_point(aes(colour=(projectedQ50))) + scale_colour_gradient2()
 
+ggplot(subset(summaryOutput_df, monthsOut == 4), aes(x=Lon, y=Lat)) +
+	geom_point(aes(colour=(projectedQ50 - climatologyQ50))) +
+	scale_colour_gradient2()
+
+month5 = summaryOutput_df[summaryOutput_df$monthsOut == 4, ]
+month5$monthsOut = 5
+summaryOutput_df = rbind(summaryOutput_df, month5)
+fwrite(summaryOutput_df, paste0(dataPath, "SoilMoisture_projectionOutput_v2_", saveDate, ".csv"))
