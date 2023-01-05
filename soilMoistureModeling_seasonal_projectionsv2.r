@@ -15,9 +15,9 @@ smClimatologyDataYears = 2017:2022
 cfsDataName = 'AdvantaAusSW-testing-cfs.nc'
 seas5DataName = 'AdvantaAusSW-testing-seas5.nc'
 #startDateEra5 = '2022-07-01'
-startDateCfs = '2022-12-11'
+startDateCfs = '2022-12-25'
 startDateSeas5 = '2022-12-01'
-saveDate = '2022-12-19'
+saveDate = '2023-01-03'
 seas5Models = 1:51
 cfsModels = 1:4#seq(1, 43, 5)
 rootDepth = 1000 
@@ -50,7 +50,7 @@ summaryOutput_df = fread(paste0(dataPath, "SoilMoisture_projectionOutput_", save
 library(ggplot2)
 library(viridis) 
 
-ggplot(subset(summaryOutput_df, monthsOut == 6), aes(x=Lon, y=Lat)) +
+ggplot(subset(summaryOutput_df, monthsOut == 5), aes(x=Lon, y=Lat)) +
 	geom_point(aes(colour=(projectedQ50 - climatologyQ50))) +
 	scale_colour_gradient2()
 

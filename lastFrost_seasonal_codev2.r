@@ -9,17 +9,19 @@ library(data.table)
 	# names and variables
 growYearEndDate = as.Date('2023-08-01')
 dataOrigination = c('ERA5', 'CFS', 'SEAS5')
-dataPath = 'J:\\Cai_data\\Simplot\\firstFrost\\NorthernGreatPlains\\'		#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains
-storeLocations = 'storLocs.csv' # NA								# either NA or a csv with store locations
-era5RecentDataName = 'SimplotNorthGrtPlns-testing-recent-era.nc'		#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
-era5ClimatologyDataName = 	'testing-climatology-era.nc'				
-cfsDataName = 				'SimplotNorthGrtPlns-testing-cfs.nc'		#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
-seas5DataName = 			'SimplotNorthGrtPlns-testing-seas5.nc'		#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns
-userName = 'Simplot Northern Great Plains' 								#'Simplot Mountain West',  'Simplot Northern Great Plains',	Simplot Great Plains
+dataPath = 'J:\\Cai_data\\Simplot\\lastFrost\\Midwest\\'			#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains,			Midwest
+storeLocations = NA		# 			'storLocs.csv' 			# either NA or a csv with store locations
+era5RecentDataName = 'SimplotMidwest-testing-recent-era.nc'			#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+era5ClimatologyDataName = 	'SimplotMidwest-testing-climatology-era.nc'#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+cfsDataName = 				'SimplotMidwest-testing-cfs.nc'			#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+seas5DataName = 			'SimplotMidwest-testing-seas5.nc'		#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+userName = 'Simplot Midwest' 										#Simplot Mountain West,  	Simplot Northern Great Plains,	Simplot Great Plains,	Simplot Midwest
 startDateEra5 = '2022-08-01'
-startDateCfs = '2022-11-06'
-startDateSeas5 = '2022-10-01'
-startDateClimatology = '2002-07-01'
+startDateCfs = '2022-12-25'
+startDateSeas5 = '2022-12-01'
+startDateClimatology = '2002-07-01'	# old file
+startDateClimatology = '2000-08-01'	# new file
+
 cfsModels = 1:4	# number of cfs models used
 seas5Models = 1:51	# number of seas5 models used
 
@@ -32,6 +34,7 @@ forecastDate = ncvar_get(nc_open(paste0(dataPath, cfsDataName)), 'lead_time')[1]
 ncvar_get(nc_open(paste0(dataPath, cfsDataName)), 'lead_time') + as.Date(startDateCfs) 
 ncvar_get(nc_open(paste0(dataPath, era5RecentDataName)), 'time') + as.Date(startDateEra5)
 ncvar_get(nc_open(paste0(dataPath, seas5DataName)), 'lead_time') + as.Date(startDateSeas5)
+ncvar_get(nc_open(paste0(dataPath, era5ClimatologyDataName)), 'time') + as.Date(startDateClimatology)
 
 #################################################################################################
 ##	historic data / climatology only needs to be run once, then data are stored for future use
@@ -284,7 +287,7 @@ f_projectedlastFrost = function(theseQuantiles = theseQuantiles,
 
 
 		# loading climatology records of Tmin by day of year
-	load(paste0(dataPath, 'climatologyTmin.RData'))	# loads tempClimatologyTmin_nc
+	load(paste0(dataPath, 'climatologyTmin_lastFrost.RData'))	# loads tempClimatologyTmin_nc
 
 	library(lubridate)
 	'%ni%' = Negate("%in%")
