@@ -1,0 +1,219 @@
+library(sf)
+library(dataRetrieval)
+
+thegdb = st_read('J:\\Cai_data\\Waterways\\USwaterways.gdb')
+
+gdbDropped = st_zm(thegdb, drop = TRUE, what = 'ZM')
+plot(gdbDropped)
+
+gdbInland = subset(gdbDropped, GEO_CLASS == 'I')
+plot(gdbInland$MAX_MEAS)
+
+
+
+readNWISdv(siteNumbers = ,
+	parameterCd = ,
+	startDate = '2022-10-01',
+	endDate = '2023-01-15')
+
+
+
+
+oRsxjRtt
+
+
+
+openWeather data interface
+
+apiKey = '03d6ffe065f38f0a8e8135db84669d22'
+
+#Current and Forecast:
+https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={API key}
+
+#Historical data:
+https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={API key}
+
+thisLat = 35.94
+thisLon = -78.98
+theseUnits = 'imperial'	# or 'metric'
+#testForecast = paste0("https://api.openweathermap.org/data/3.0/onecall?lat=", thisLat, "&lon=", thisLon, "&appid=", apiKey)
+testForecast = paste0("https://api.openweathermap.org/data/3.0/onecall?lat=", thisLat, "&lon=", thisLon, "&units=", theseUnits, "&appid=", apiKey)
+
+
+library(rjson)
+
+library(lubridate)
+
+startTime = Sys.time()
+result = fromJSON(file = testForecast)
+
+#as_datetime(result$minutely[[10]]$dt)	# 61 mins
+#as_datetime(result$hourly[[10]]$dt)		# 48 hrs
+#as_datetime(result$daily[[1]]$dt)		# 8 days
+
+	#pulling daily morning temps
+sapply(sapply(result$daily, '[', 7), '[[', 6)
+	#pulling daily evening temps
+sapply(sapply(result$daily, '[', 7), '[[', 5)
+	#pulling daily max temps
+sapply(sapply(result$daily, '[', 7), '[[', 3)
+	#pulling daily feels like morning temps
+sapply(sapply(result$daily, '[', 8), '[[', 4)
+	#pulling daily feels like evening temps
+sapply(sapply(result$daily, '[', 8), '[[', 3)
+	#pulling daily wind gust
+sapply(result$daily, '[', 14)
+
+
+
+mornTemp = NULL
+eveTemp = NULL
+maxTemp = NULL
+mornHtInd = NULL
+eveHtInd = NULL
+windGust = NULL
+windAvg = NULL
+rnProb = NULL
+rnDpth = NULL
+
+for(i in 1:length(result$daily))	{
+	mornTemp = c(mornTemp, result$daily[[i]]$temp$morn)
+	eveTemp = c(eveTemp, result$daily[[i]]$temp$eve)
+	maxTemp = c(maxTemp, result$daily[[i]]$temp$max)
+	mornHtInd = c(mornHtInd, result$daily[[i]]$feels_like$morn)
+	eveHtInd = c(eveHtInd, result$daily[[i]]$feels_like$morn)
+	windGust = c(windGust, result$daily[[i]]$wind_gust)
+	windAvg = c(windAvg, result$daily[[i]]$wind_speed)
+	rnProb = c(rnProb, result$daily[[i]]$pop)
+	isRain = ifelse(is.null(result$daily[[i]]$rain), 0, result$daily[[i]]$rain)
+	rnDpth = c(rnDpth, isRain)
+}
+
+thisForecast = data.frame(MorningTemp = mornTemp,
+	EveningTemp = eveTemp,
+	MaxTemp = maxTemp,
+	MorningHeatIndx = mornHtInd,
+	EveningHeatIndx = eveHtInd,
+	WindGusts = windGust,
+	WindSpeed = windAvg,
+	ProbabilityOfRain = rnProb,
+	RainDepth = rnDpth)
+
+
+
+thisForecast$ChillyConditions = NA
+coldStarts = which(thisForecast$MorningTemp < 40)
+if(length(coldStarts > 0))	{thisForecast$ChillyConditions[coldStarts] = 'Chill Alert: chilly morning temperatures < 40F'}
+
+thisForecast$WindyConditions = NA
+windyDays = which(thisForecast$WindSpeed > 15 | thisForecast$WindGust > 35)
+if(length(windyDays > 0))	{thisForecast$WindyConditions[windyDays] = 'Wind Alert: windy or gusty conditions likely'}
+
+thisForecast$RainyConditions = NA
+rainChance = which(thisForecast$ProbabilityOfRain > .5 & thisForecast$RainDepth > 2)
+if(length(rainChance > 0))	{thisForecast$RainyConditions[rainChance] = 'Light Rain Alert: high probability of light rain'}
+
+thisForecast$FertilizerWarning = NA
+heavyRain = which(thisForecast$ProbabilityOfRain > .5 & thisForecast$RainDepth > 15)
+if(length(heavyRain > 0))	{
+	thisForecast$RainyConditions[heavyRain] = 'Heavy Rain Alert: high probability of heavy rain'
+	fertilizerWarning = unique(c(heavyRain, heavyRain - 1, heavyRain - 2))
+	fertilizerWarning = fertilizerWarning[which(fertilizerWarning > 0)]
+	thisForecast$FertilizerWarning[fertilizerWarning] = 'Fertilizer Application Warning: high probability of heavy rain in upcoming 72 hours'
+	}
+fwrite(thisForecast, 'J:\\Downloads\\forecastTest.csv')
+endTime = Sys.time()
+endTime - startTime
+
+
+
+
+library(emayili)
+email <- envelope() %>%
+  from("user@sender.com") %>%
+  to("user@recipient.com") %>%
+  subject("Test email subject") %>%
+  body("Test email body")
+
+smtp <- server(host = "smtp.mailtrap.io",
+               port = 25,
+               username = "********",
+               password = "*********")
+			   
+email <- envelope() %>%
+  from("user@sender.com") %>%
+  to(c("Recipient 1 <user1@recipient.com>", "Recipient 2 <user@recipient.com>")) %>%
+  cc("cc@recipient.com") %>%
+  bcc("bcc@recipient.com") %>%
+  reply("reply-to@recipient.com") %>%
+  subject("Test email subject") %>%
+  body("Test email body")			   
+
+
+
+library(mailR)
+send.mail(from="arik.tash@gmail.com",
+	to="arik.tash@gmail.com",
+	cc="arik.tash@gmail.com",
+	bcc="arik.tash@gmail.com",
+	subject="Test Email",
+	body="PFA the desired document",
+	html=T,
+	smtp=list(host.name = "smtp.gmail.com",
+	port = 465,
+	user.name = "arik.tash@gmail.com",
+	passwd = "ATash!e1111GM",
+	ssl = T),
+	authenticate=T)
+	,
+	attach.files="C:\\Users\\Deepanshu\\Downloads\\Nature of Expenses.xls")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+thisForecast$FertilizerWarning = NA
+heavyRain = unique(heavyRain
+
+coldDays = which(thisForecast$MaxTemp < 53
+
+thisForecast$MorningConditions[
+thisForecast$Date = 
+
+
+library(sendmailR)
+Server<-list(smtpServer= "smtp.example.io")
+
+from <- sprintf("<arik.tash@gmail.com>","The Sender") # the sender’s name is an optional value
+to <- sprintf("<arik.tash@gmail.com>")
+subject <- "Test email subject"
+body <- "Test email body"
+sendmail(from,to,subject,body,control=list(smtpServer= "smtp.example.io"))
+
+
+
+
+library(owmr)
+
+Sys.setenv(OWM_API_KEY = apiKey) 
+
+(res <- get_current("London", units = "metric") %>%
+  owmr_as_tibble()) %>% names()
+  
+  
+ dailyForecast = paste0('https://api.openweathermap.org/data/2.5/forecast/daily?lat=', thisLat, '&lon=', thisLon, '&cnt=16&appid=', apiKey)
+result3 = fromJSON(dailyForecast)
+
+
+ 

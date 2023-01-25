@@ -129,23 +129,25 @@ f_projectedSoilMoisture = function(
 	# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	# note that the updated historical soil moisture database must be downloaded prior to running model
 
-	ncin_sm22 = nc_open(paste0(dataPath, 'sm_pct_2022.nc'))
-	nc_lat_sm = ncvar_get(ncin_sm22, 'latitude')
-	nc_lon_sm = ncvar_get(ncin_sm22, 'longitude')
+	ncin_sm23 = nc_open(paste0(dataPath, 'sm_pct_2023.nc'))
+	nc_lat_sm = ncvar_get(ncin_sm23, 'latitude')
+	nc_lon_sm = ncvar_get(ncin_sm23, 'longitude')
 	theseSMlons = which(nc_lon_sm %in% unique(nc_lonCfs))
 	theseSMlats = which(nc_lat_sm %in% unique(nc_latCfs))
 	theseSMlonVals = nc_lon_sm[theseSMlons]
 	theseSMlatVals = nc_lat_sm[theseSMlats]
 	
-	nc_sm22 = ncvar_get(ncin_sm22, 'sm_pct')[theseSMlons, theseSMlats, ]
+	nc_sm23 = ncvar_get(ncin_sm23, 'sm_pct')[theseSMlons, theseSMlats, ]
 	
 	nc_sm17 = ncvar_get(nc_open(paste0(dataPath, 'sm_pct_2017.nc')), 'sm_pct')[theseSMlons, theseSMlats, ]
 	nc_sm18 = ncvar_get(nc_open(paste0(dataPath, 'sm_pct_2018.nc')), 'sm_pct')[theseSMlons, theseSMlats, ]
 	nc_sm19 = ncvar_get(nc_open(paste0(dataPath, 'sm_pct_2019.nc')), 'sm_pct')[theseSMlons, theseSMlats, ]
 	nc_sm20 = ncvar_get(nc_open(paste0(dataPath, 'sm_pct_2020.nc')), 'sm_pct')[theseSMlons, theseSMlats, ]
 	nc_sm21 = ncvar_get(nc_open(paste0(dataPath, 'sm_pct_2021.nc')), 'sm_pct')[theseSMlons, theseSMlats, ]
+	nc_sm22 = ncvar_get(nc_open(paste0(dataPath, 'sm_pct_2022.nc')), 'sm_pct')[theseSMlons, theseSMlats, ]
 
-	nc_date_sm = as.Date("1900-01-01") + ncvar_get(ncin_sm22, 'time') # time is days after jan 1 1900
+
+	nc_date_sm = as.Date("1900-01-01") + ncvar_get(ncin_sm23, 'time') # time is days after jan 1 1900
 	allSMdates = as.Date("1970-01-01") + (as.Date("2017-01-01") : last(nc_date_sm))
 	allSMdoys = yday(allSMdates)
 
@@ -179,12 +181,12 @@ f_projectedSoilMoisture = function(
 		for(j in 1:length(nc_lonSeas5))	{
 				#identify nearest lon in the SM ncdf
 			closeSMLon = which.min(abs(nc_lonSeas5[j] - theseSMlonVals))
-			recentSM = nc_sm22[closeSMLon, closeSMLat, ]
+			recentSM = nc_sm23[closeSMLon, closeSMLat, ]
 
 			if(any(!is.na(recentSM)))	{
 
 				allSM = c(nc_sm17[closeSMLon, closeSMLat, ], nc_sm18[closeSMLon, closeSMLat, ], nc_sm19[closeSMLon, closeSMLat, ],
-					nc_sm20[closeSMLon, closeSMLat, ], nc_sm21[closeSMLon, closeSMLat, ], nc_sm21[closeSMLon, closeSMLat, ])
+					nc_sm20[closeSMLon, closeSMLat, ], nc_sm21[closeSMLon, closeSMLat, ], nc_sm22[closeSMLon, closeSMLat, ])
 	
 				#identify the relevant row for the calibration database
 				closeCalRow = subset(calibDF, Lat == nc_latSeas5[i] & Lon == nc_lonSeas5[j])[1,]
