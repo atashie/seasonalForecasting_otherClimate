@@ -9,15 +9,15 @@ library(data.table)
 	# names and variables
 growYearEndDate = as.Date('2023-08-01')
 dataOrigination = c('ERA5', 'CFS', 'SEAS5')
-dataPath = 'J:\\Cai_data\\Simplot\\lastFrost\\Midwest\\'				#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains,			Midwest
+dataPath = 'J:\\Cai_data\\Simplot\\lastFrost\\NorthernGreatPlains\\'				#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains,			Midwest
 storeLocations = NA		# 			'storLocs.csv' 			# either NA or a csv with store locations
-era5RecentDataName = 'SimplotMidwest-testing-recent-era.nc'				#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
-era5ClimatologyDataName = 	'SimplotMidwest-testing-climatology-era.nc'#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
-cfsDataName = 				'SimplotMidwest-testing-cfs.nc'				#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
-seas5DataName = 			'SimplotMidwest-testing-seas5.nc'			#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
-userName = 'Simplot Midwest' 										#Simplot Mountain West,  	Simplot Northern Great Plains,	Simplot Great Plains,	Simplot Midwest
+era5RecentDataName = 'SimplotNorthGrtPlns-testing-recent-era.nc'				#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+era5ClimatologyDataName = 	'SimplotNorthGrtPlns-testing-climatology-era.nc'#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+cfsDataName = 				'SimplotNorthGrtPlns-testing-cfs.nc'				#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+seas5DataName = 			'SimplotNorthGrtPlns-testing-seas5.nc'			#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+userName = 'Simplot Northern Great Plains' 										#Simplot Mountain West,  	Simplot Northern Great Plains,	Simplot Great Plains,	Simplot Midwest
 startDateEra5 = '2022-08-01'
-startDateCfs = '2023-01-15'
+startDateCfs = '2023-01-29'
 startDateSeas5 = '2023-01-01'
 #startDateClimatology = '2002-07-01'	# All Great Plains; MountainWest
 startDateClimatology = '2000-08-01'	# Midwest; NorthernGreatPlains
