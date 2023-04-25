@@ -1,31 +1,56 @@
+##################
+# Workflow
+# I. initialize storage	(gw + sm)				- global: nonAg = Ag
+# II. daily time steps
+#	1. irrigation application (sm)				- Ag only
+#	2. total infiltration (sm)					- global: nonAg = Ag
+#	3. soil moisture routine
+#		a. sm store and drain in nonAg			- nonAg only
+#		b. sm store and drain in Ag				- Ag only
+# 	4. groundwater routine
+#		a. pumping from Ag						- Ag only
+#		b. flux and store in nonAg				- nonAg only
+#		c. flux and store in Ag					- Ag only
 
-	# rainfall infiltration function
-infiltration_f = function(PPT = NA, crn = 50, Smax = 100, Ia_scalar = 0.2){
+
+
+	#!!!!!!!!!!!!!
+	# awaiting actual data to develop
+	# 1. irrigation infiltration
+irrigationInfiltration_f = function(pumpVol = NA, irrigArea = NA)	{
+	infil = pumpVol / irrigArea
+	return(irrigation) # [mm]
+	}
+	#!!!!!!!!!!!!!
+
+
+	# 2. rainfall infiltration function
+totalInfiltration_f = function(PPT = NA, irrigation = NA, crn = 50, Smax = 100, Ia_scalar = 0.2){
 #	if(PPT == NA) { print('ppt is null') ; stop()}
 	Ia = Ia_scalar * Smax
-	infil = PPT - ifelse(PPT > Ia, (PPT - Ia)^2 / (PPT - Ia + Smax), 0)
-	return(infil)
-	}
-	
-PET_f = function(	)	{
-	
+	totWaterInput = PPT + irrigation
+	infil = totWaterInput - ifelse(totWaterInput > Ia, (totWaterInput - Ia)^2 / (totWaterInput - Ia + Smax), 0)
+	return(infil) # [mm]
 	}
 
 	
-	# soil moisture 
+	
+	# soil moisture store and drain
 SM_routine_f = function(infiltration = NA, PET = NA, 
 	rcScl = 0.1,	# water retention curve scalar
 	rcExp = 1.3,	# water retention curve exponent
 	PETexp = 2, 	# exponent of PET decay
-	Zr = 1000,	# root depth
-	n = 0.5,	# soil porosity
-	smhp = 0.00,	# soil moisture at hydroscopic point
-	smwp = 0.10,	# soil moisture at wilting point
-	smfc = 0.25,	# soil moisture field capacity
-	s0 = .5)	# initial soil moisture 
+	Zr = 1000,		# root depth [mm]
+	n = 0.5,		# soil porosity [-]
+	smhp = 0.00,	# soil moisture at hydroscopic point [-]
+	smwp = 0.10,	# soil moisture at wilting point [-]
+	smfc = 0.25,	# soil moisture field capacity [-]
+	s0 = .5)		# initial soil moisture  [-]
 	{
 	nt = length(infiltration)
+	drainageTs = c(0, rep(NA, nt))
 	SM_store = c(s0, rep(NA, nt))
+	aetTs = c(0, rep(NA, nt))
 	smhp_stor = Zr * smhp
 	smwp_stor = Zr * smwp
 	smfc_stor = Zr * smfc
@@ -42,19 +67,108 @@ SM_routine_f = function(infiltration = NA, PET = NA,
 			min(thisSMstor - smfc_stor, rcScl * thisSMstor * (thisSMstor / smfc_stor)^rcExp),
 			0)
 		
+		drainageTs[i+1] = deepDrainage 
+		aetTs[i+1] = AET 
 		SM_store[i+1] = min(max_stor, thisSMstor - min(c(thisSMstor, deepDrainage)) + infiltration[i]) 
 		}
-	return(SM_store / n)
+	return(cbind(SM_store / n, drainageTs, aetTs)
 	}
 	
+
+	#!!!!!!!!!!!!!
+	# awaiting actual data to develop
+	# 4a. pumping from ag - should already vol, and already converted to depth by irrigationInfiltration_f()
+	#!!!!!!!!!!!!!
 	
-#SM_routine_f(infiltration = infil, PET = PET)
 	
+	#!!!!!!!!!!!!!
+	# awaiting actual data to develop
+	# groundwater flux and store
+groundwaterFluxStoreRegional_f = function(graceNCDF, drainageTs,
+	gwWatershedArea = NA,
+	irrigatedPctArea = 0.5, # %area subject to groundwater irrigation
+	gwRechDelay = 10,		# delay in gw rech [days]
+	gwRechSmoother = 30),		# smoothing kernel for gw rech
+	nMax = c(0.1), 			# maximum bedrock drainable porosity [-]; one value per ts
+	nDecay = c(2),				# exponential decay of aquifer porosity with depth; one value per ts
+#	lateralSatK = c(0.5, 5*10^7)	# range of sat K for permeable materials
+	rcScl = c(0.1),	# water retention curve scalar
+	rcExp = c(1.3))	# water retention curve exponent
+		
+	
+	# version with multiple local wells
+groundwaterFluxStore_f = function(drainageMtrx = NA, pumpingMtrx = NA, datesTs= NA, # input time series; groundwatersheds should be run concurrently, so first ts is in first column representing regional (nonAg) and subsequent ts represent individual wells / fields
+	gwWatershedArea = c(NA), wellDepth = c(NA), surfaceElevation = c(NA), initialWaterLevels = c(NA), # measured characteristics of the location
+	gwRechDelay = 10,		# delay in gw rech [days]
+	gwRechSmoother = 30),		# smoothing kernel for gw rech
+	nMax = c(0.1), 			# maximum bedrock drainable porosity [-]; one value per ts
+	nDecay = c(2),				# exponential decay of aquifer porosity with depth; one value per ts
+#	lateralSatK = c(0.5, 5*10^7)	# range of sat K for permeable materials
+	rcScl = c(0.1),	# water retention curve scalar
+	rcExp = c(1.3))	# water retention curve exponent
+	
+		#initializing matrix to store outputs
+	gwLevels = matrix(NA, ncol = ncol(drainageMtrx), nrow = nrow(drainageMtrx))
 
-#rain = 90 * RainPoisson(ndays = 365, lambda = 0.05, alpha = 0.60)
+		#smoothing the gw recharge time series
+	gwRecharge = matrix(mean(drainageMtrx, na.rm=TRUE), ncol = ncol(drainageMtrx), nrow = nrow(drainageMtrx))
+	gwRecharge[-c(1:gwRechDelay), ] = drainageMtrx[-c((nrow(gwRecharge)-(gwRechDelay-1)):nrow(gwRecharge)), ] 
+	gwRechSmth = gwRecharge
+	for(thisCol in 1:ncol(gwRecharge))	{
+		gwRechSmth[ , thisCol] = ksmooth(1:nrow(gwRecharge), gwRecharge[ , thisCol], kernel='normal', bandwidth=gwRechSmoother, n.points=nrow(gwRecharge))$y
+	}
+	
+		#calculating natural net outflow
 
 
+		#calculating net change in water resource inputs / outputs
+	dailyLocalNetChng = #drainageTs - pumpingTs
 
+	rcScl * 
+
+
+	deepDrainage = ifelse(thisSMstor > smfc_stor,
+		min(thisSMstor - smfc_stor, rcScl * thisSMstor * (thisSMstor / smfc_stor)^rcExp),
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
 
 
 

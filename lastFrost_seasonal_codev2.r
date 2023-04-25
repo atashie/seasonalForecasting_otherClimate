@@ -18,8 +18,8 @@ cfsDataName = 				'SimplotMidwest-testing-cfs.nc'				#	SimplotMtnWst			SimplotNo
 seas5DataName = 			'SimplotMidwest-testing-seas5.nc'			#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
 userName = 'Simplot Midwest' 										#Simplot Mountain West,  	Simplot Northern Great Plains,	Simplot Great Plains,	Simplot Midwest
 startDateEra5 = '2022-08-01'
-startDateCfs = '2023-03-19'
-startDateSeas5 = '2023-02-01'
+startDateCfs = '2023-04-16'
+startDateSeas5 = '2023-04-01'
 #startDateClimatology = '2002-07-01'	# All Great Plains; MountainWest
 startDateClimatology = '2000-08-01'	# Midwest; NorthernGreatPlains
 
@@ -108,25 +108,25 @@ summary(historicOutput)
 ##################################################################################################
 
 #allOutput = fread(paste0(dataPath, 'lastFrost_', userName , "_", forecastDate, '.csv'))
+# one-off analysis for Nuseed, may delete if not needed again
 
-
-storeOutput = allOutput[1,]
-storeOutput$State = NA
-storeOutput$City = NA
+#storeOutput = allOutput[1,]
+#storeOutput$State = NA
+#storeOutput$City = NA
 ##	identifying user locations instead of heatmap, only needed for some users
-storeLocs = fread(paste0(dataPath, 'storLocs.csv'))
-for(i in 1:nrow(storeLocs))	{
-	closeLat = allOutput$Lat[which.min(abs(allOutput$Lat - storeLocs$Lat[i]))]
-	closeLon = allOutput$Lon[which.min(abs(allOutput$Lon - storeLocs$Lon[i]))] 
-	nrNgbr = subset(allOutput, Lat == closeLat & Lon == closeLon)
-	nrNgbr$Lat = storeLocs$Lat[i]
-	nrNgbr$Lon = storeLocs$Lon[i]
-	nrNgbr$User = paste0(userName, ' - Store Location')
-	nrNgbr$City = storeLocs$City[i]
-	nrNgbr$State = storeLocs$State[i]
-	storeOutput = rbind(storeOutput, nrNgbr)
-}
-fwrite(storeOutput[-1,], paste0(dataPath, 'lastFrost_storeLocs_', allOutput[1, 'User'], "_", forecastDate, '.csv'))
+#storeLocs = fread(paste0(dataPath, 'storLocs.csv'))
+#for(i in 1:nrow(storeLocs))	{
+#	closeLat = allOutput$Lat[which.min(abs(allOutput$Lat - storeLocs$Lat[i]))]
+#	closeLon = allOutput$Lon[which.min(abs(allOutput$Lon - storeLocs$Lon[i]))] 
+#	nrNgbr = subset(allOutput, Lat == closeLat & Lon == closeLon)
+#	nrNgbr$Lat = storeLocs$Lat[i]
+#	nrNgbr$Lon = storeLocs$Lon[i]
+#	nrNgbr$User = paste0(userName, ' - Store Location')
+#	nrNgbr$City = storeLocs$City[i]
+#	nrNgbr$State = storeLocs$State[i]
+#	storeOutput = rbind(storeOutput, nrNgbr)
+#}
+#fwrite(storeOutput[-1,], paste0(dataPath, 'lastFrost_storeLocs_', allOutput[1, 'User'], "_", forecastDate, '.csv'))
 
 
 
