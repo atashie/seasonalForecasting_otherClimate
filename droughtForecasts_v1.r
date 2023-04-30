@@ -14,7 +14,7 @@ library(gganimate)
 library(transformr)
 library(gifski)
 library(mapiso)
-
+ 
 	# these file locations remain the same for all watersheds of a region
 seas5DataNCDF = 'J:\\Cai_data\\Nuveen\\surfaceWaterData_and_Output\\NuveenNorCal-testing-seas5.nc' 				# SoCal
 era5DataNCDF = 'J:\\Cai_data\\Nuveen\\surfaceWaterData_and_Output\\NuveenNorCal-historic-testing-era.nc'
