@@ -9,19 +9,19 @@ library(data.table)
 	# names and variables
 growYearEndDate = as.Date('2023-08-01')
 dataOrigination = c('ERA5', 'CFS', 'SEAS5')
-dataPath = 'J:\\Cai_data\\Simplot\\lastFrost\\Midwest\\'			#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains,			Midwest
+dataPath = 'J:\\Cai_data\\Simplot\\lastFrost\\MountainWest\\'			#	MountainWest, 			NorthernGreatPlains,			AllGreatPlains,			Midwest
 #'J:\\Cai_data\\Nuseed\\'   , NuseedSouth   #startDateClimatology = '1990-08-01'	# NuseedSouth
 storeLocations = NA		# 			'storLocs.csv' 			# either NA or a csv with store locations
-era5RecentDataName = 'SimplotMidwest-testing-recent-era.nc'				#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
-era5ClimatologyDataName = 	'SimplotMidwest-testing-climatology-era.nc'#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
-cfsDataName = 				'SimplotMidwest-testing-cfs.nc'				#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
-seas5DataName = 			'SimplotMidwest-testing-seas5.nc'			#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
-userName = 'Simplot Midwest' 										#Simplot Mountain West,  	Simplot Northern Great Plains,	Simplot Great Plains,	Simplot Midwest
+era5RecentDataName = 'SimplotMtnWst-testing-recent-era.nc'				#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+era5ClimatologyDataName = 	'SimplotMtnWst-testing-climatology-era.nc'#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+cfsDataName = 				'SimplotMtnWst-testing-cfs.nc'				#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+seas5DataName = 			'SimplotMtnWst-testing-seas5.nc'			#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
+userName = 'Simplot Mountain West' 										#Simplot Mountain West,  	Simplot Northern Great Plains,	Simplot Great Plains,	Simplot Midwest
 startDateEra5 = '2022-08-01'
-startDateCfs = '2023-04-16'
+startDateCfs = '2023-04-23'
 startDateSeas5 = '2023-04-01'
-#startDateClimatology = '2002-07-01'	# All Great Plains; MountainWest
-startDateClimatology = '2000-08-01'	# Midwest; NorthernGreatPlains
+startDateClimatology = '2002-07-01'	# All Great Plains; MountainWest
+#startDateClimatology = '2000-08-01'	# Midwest; NorthernGreatPlains
 
 
 cfsModels = 1:4	# number of cfs models used
