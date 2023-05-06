@@ -35,7 +35,7 @@ era5StartDate =  as.Date('1998-08-01') #as.Date('1980-01-01') # + ncvar_get(ncin
 	# delineate a new basin
 basinDelineation_f(
 	gageLonLat = c(locationLon, locationLat),
-	basinATLAS_locationAndFile = 'C:\\Users\\arik\\Documents\\PhD Research\\D4\\BasinATLAS_Data_v10\\BasinATLAS_v10.gdb',
+	basinATLAS_locationAndFile = 'J:\\Cai_data\\BasinATLAS_Data_v10\\BasinATLAS_v10.gdb',
 	dataOut_location = dataOut_location,
 	basinName)
 
