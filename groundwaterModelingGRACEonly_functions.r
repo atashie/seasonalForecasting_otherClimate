@@ -124,14 +124,20 @@ irrigation_f = function(
 	
 	# step 4: estimating net groundwater flow across basins
 netGwFlow_f = function(
-	gwRecharge = groundwaterRechTable$gwRecharge,	# a time series of mass flux
+	gwRecharge = gwRechargeTable$gwRecharge,	# a time series of mass flux
 	irrigationNeeded = irrigationNeeded,	# time series of area-averaged irrigation
 	regionalNetGwRtOfChange = -10,	# what is the long-term trend in gw resources, here likely from abutting GRACE / GRACE-FO tiles, given in mm / day; should be a small number
+	graceSinMod = graceSinMod,		# model capturing the seasonal signal in gw head
+	histDates = climateInput$Date,		
 	initialStorageDifference = 500,	# what is the initial head on location relative to regional average (pos is higher regional so net inflow, neg is lower regional so net outflow)
 	maxStorageBalance = 1000,		# what is the maximum head imbalance in mm
 	rcScl_netGw = 0.1 / 365)			# recession curve scalar
 	{
-	extraRegionalStorageTS = initialStorageDifference + regionalNetGwRtOfChange * seq(1, length(gwRecharge), 1) / 365.25
+	
+	newGraceRadians = sin(2 * pi * lubridate::yday(histDates) / 365.25)
+	predSeasonalGW = predict(graceSinMod, newdata = (data.frame(graceRadians = newGraceRadians)))
+	extraRegionalStorageTS = initialStorageDifference + regionalNetGwRtOfChange * seq(1, length(gwRecharge), 1) / 365.25 + predSeasonalGW - median(predSeasonalGW)
+
 	regionalStorageTS = cumsum(gwRecharge) - cumsum(irrigationNeeded)
 	regionalStorageDiff = diff(regionalStorageTS)
 
@@ -162,12 +168,21 @@ runRegionalGWmodel_f = function(
 	basinName = 'basin_name',
 	thisLatitudeInDegrees = 35,
 	variablesTableRow = variablesTableRow,
+	graceSinMod = graceSinMod,				# model capturing the seasonal signal of gw head
+	histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),
+	multiClimateData = NA, 
 	startYear = 2000,
 	endYear = 2099)
 	{		
 
-	climateInput = data.table::as.data.table(readRDS(paste0(dataOut_location, 'ERA5_', basinName, '.RData')))
-	climateInput = subset(climateInput, lubridate::year(Date) >= startYear & lubridate::year(Date) <= endYear)
+	if(!is.data.table(multiClimateData))	{
+		climateInput = data.table::as.data.table(readRDS(paste0(dataOut_location, 'ERA5_', basinName, '.RData')))
+		climateInput = subset(climateInput, lubridate::year(Date) >= startYear & lubridate::year(Date) <= endYear)
+	}	else	{
+		climateInput = multiClimateData
+		climateInput = subset(climateInput, lubridate::year(Date) >= startYear & lubridate::year(Date) <= endYear)
+	}
+	
 
 	lat_radians = min((abs(thisLatitudeInDegrees)*pi/180), 1.1)				# from customer location (centroid)
 		# totalInfiltration_f vars
@@ -197,6 +212,8 @@ runRegionalGWmodel_f = function(
 	initialStorageDifference = variablesTableRow$initialStorageDifference	# what is the initial head on location relative to regional average (pos is higher regional so net inflow, neg is lower regional so net outflow)
 	maxStorageBalance = variablesTableRow$maxStorageBalance		# what is the maximum head imbalance in mm
 	rcScl_netGw = variablesTableRow$rcScl_netGw					# recession curve scalar
+	graceSinMod = graceSinMod		# model capturing the seasonal signal in gw head
+	histDates = climateInput$Date		
 
 		
 	totalInfiltration = totalInfiltration_f(
@@ -236,7 +253,7 @@ runRegionalGWmodel_f = function(
 
 		# step 3: estimating irrigation needs for ag lands
 	irrigationNeeded =	irrigation_f(
-		irrigatedPctArea = .2,		# pct area that is regularly irrigated with gw
+		irrigatedPctArea = irrigatedPctArea,		# pct area that is regularly irrigated with gw
 		cropWaterNeedsTS = cropWaterNeeds,	#ts of crop water needs from above function
 		infiltrationTS = c(totalInfiltration, mean(totalInfiltration)) - gwRechargeTable$gwRecharge)		# ts of cropland infiltration (minus gw rech) from above function
 
@@ -245,10 +262,12 @@ runRegionalGWmodel_f = function(
 	netGwFlow = netGwFlow_f(
 		gwRecharge = gwRechargeTable$gwRecharge,	# a time series of mass flux
 		irrigationNeeded = irrigationNeeded,	# time series of area-averaged irrigation
-		regionalNetGwRtOfChange = 0,	# what is the long-term trend in gw resources, here likely from abutting GRACE / GRACE-FO tiles, given in mm / day; should be a small number
-		initialStorageDifference = 0,	# what is the initial head on location relative to regional average (pos is higher regional so net inflow, neg is lower regional so net outflow)
-		maxStorageBalance = 1000,		# what is the maximum head imbalance in mm
-		rcScl_netGw = 0.001)					# recession curve scalar
+		regionalNetGwRtOfChange = regionalNetGwRtOfChange,	# what is the long-term trend in gw resources, here likely from abutting GRACE / GRACE-FO tiles, given in mm / day; should be a small number
+		graceSinMod = graceSinMod,				# model capturing the seasonal signal of gw head
+		histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),		
+		initialStorageDifference = initialStorageDifference,	# what is the initial head on location relative to regional average (pos is higher regional so net inflow, neg is lower regional so net outflow)
+		maxStorageBalance = maxStorageBalance,		# what is the maximum head imbalance in mm
+		rcScl_netGw = rcScl_netGw)					# recession curve scalar
 
 	Date = c(climateInput$Date, data.table::last(climateInput$Date) + 1)
 	totalInfiltration = c(totalInfiltration, NA)
@@ -263,6 +282,7 @@ runRegionalGWmodel_f = function(
 calibrateRegionalGWmodel_f = function(
 	variablesTable = variablesTable,
 	graceTS = graceTS,
+	graceSinMod = graceSinMod, 
 	numSamples = 1000, 
 	maxNumRuns = 1000^2, 
 #	targetMetric = 1, 					# 1 = KGE, 2 = NSE, 3 = MAE, 4 = RMSE, 5 = bias
@@ -291,7 +311,8 @@ calibrateRegionalGWmodel_f = function(
 	goodRuns = 0
 	while(thisRow <= maxNumRuns & goodRuns < minGoodRuns)	{
 		if(thisRow %% numSamples == 0)	{
-			variablesTable = variablesTable[sample(1:nrow(variablesTable)), ]
+			library(data.table)
+			variablesTable = variablesTable[ , lapply(.SD, sample)]
 			targetMetricValue = targetMetricValue * .9
 			thisRow = 0
 		}
@@ -303,12 +324,17 @@ calibrateRegionalGWmodel_f = function(
 			basinName = basinName, #'basin_name',
 			thisLatitudeInDegrees = locationLat,
 			variablesTableRow = variablesTable[thisRow,],
+			graceSinMod = graceSinMod,				# model capturing the seasonal signal of gw head
+			histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),
+			multiClimateData = NA, 
 			startYear = 2000,
 			endYear = 2099)
-		
+	
+	
+	
 		allDataOutput = merge(graceTS, regionalGwModel, all.y=TRUE)
-		allDataOutput$AnomalyInterp = zoo::na.fill(allDataOutput$Anomaly, 'extend')
-		allDataOutput$UncertaintyInterp = zoo::na.fill(allDataOutput$Uncertainty, 'extend')
+		allDataOutput$AnomalyInterp = zoo::na.fill(allDataOutput$Anomaly, c(NA, 'extend', NA))
+		allDataOutput$UncertaintyInterp = zoo::na.fill(allDataOutput$Uncertainty, c(NA, 'extend', NA))
 
 		allDataSubset = subset(allDataOutput, Date >= graceTS$Date[1])
 		allDataSubset = allDataSubset[-nrow(allDataSubset),]
@@ -324,7 +350,7 @@ calibrateRegionalGWmodel_f = function(
 			calOut$mse[goodRuns] = hydroGOF::mse(allDataSubset$subsidizedRegionalStorage, allDataSubset$AnomalyInterp)
 			calOut$rmse[goodRuns] = hydroGOF::rmse(allDataSubset$subsidizedRegionalStorage, allDataSubset$AnomalyInterp)
 			calOut$pbias[goodRuns] = hydroGOF::pbias(allDataSubset$subsidizedRegionalStorage, allDataSubset$AnomalyInterp)
-			calOut$mae[goodRuns] = hydroGOF::rPearson(allDataSubset$subsidizedRegionalStorage, allDataSubset$AnomalyInterp)
+			calOut$rPearson[goodRuns] = hydroGOF::rPearson(allDataSubset$subsidizedRegionalStorage, allDataSubset$AnomalyInterp)
 
 			data.table::fwrite(calOut, paste0(dataOut_location, basinName, 'calOut.csv'))
 			plot(allDataSubset$AnomalyInterp, type='l', lty=2, lwd = 3)
@@ -338,5 +364,67 @@ calibrateRegionalGWmodel_f = function(
 
 
 
+
+
+############################################################################################################
+# part 4 projecting with cmip6 and multimodel runs
+
+projectRegionalGWmodel_f = function(
+	variablesTable = calOut,
+	graceTS = graceTS,
+	graceSinMod = graceSinMod, 
+	dataOut_location ='save_file_location',
+	basinName = 'basin_name',
+	thisLatitudeInDegrees = 35,
+	startYear = 2000,
+	endYear = 2099)
+	{
+
+	variablesTableOrder = c(rev(order(variablesTable$KGE))[1:20], rev(order(variablesTable$NSE))[1:5],
+		order(variablesTable$rmse)[1:2], order(variablesTable$mae)[1:2], order(variablesTable$rmse)[1:2], order(variablesTable$pbias)[1:5])#, order(variablesTable$pearson)[1:2])
+	variablesTableSort = variablesTable[unique(variablesTableOrder), ]
+
+	histClimateInput = data.table::as.data.table(readRDS(paste0(dataOut_location, 'ERA5_', basinName, '.RData')))
+	
+	scenNames = c('ssp126', 'ssp245', 'ssp585')
+	for(thisScen in 1:3)	{
+		climateInputAllMods = readRDS(paste0(dataOut_location, 'CMIP65_', basinName, '_', scenNames[thisScen], '.RData'))
+		numCalibrations = length(climateInputAllMods)
+		
+		climateDataList = list()
+		thisIter = 0
+		
+		for(thisClimateModel in 1:length(climateInputAllMods))	{
+			projClimateData = data.table::as.data.table(climateInputAllMods[[thisClimateModel]])
+			multiClimateData = merge(projClimateData, histClimateInput, all.y=TRUE)
+	
+
+			if(all(!is.na(multiClimateData)))	{	# not sure why but getting some ppt nas
+				
+				for(thisCalibration in 1:numCalibrations)	{
+					variablesTableRow = variablesTableSort[thisCalibration, ]
+
+					thisIter = thisIter + 1
+					regionalGwModel = runRegionalGWmodel_f(
+							dataOut_location = dataOut_location,
+							basinName = basinName, #'basin_name',
+							thisLatitudeInDegrees = locationLat,
+							variablesTableRow = variablesTableRow,
+							graceSinMod = graceSinMod,				# model capturing the seasonal signal of gw head
+							histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),
+							multiClimateData = multiClimateData, 
+							startYear = 2000,
+							endYear = 2099)
+
+					plot(regionalGwModel$Date, regionalGwModel$regionalStorage, type='l')
+					print((tail(regionalGwModel$regionalStorage, 1) - regionalGwModel$regionalStorage[1]) / 85)
+					climateDataList[[thisIter]] = as.data.table(regionalGwModel)
+				}
+			}	else	{ print(multiClimateData)}
+		}
+		
+		saveRDS(climateDataList, paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, '.RData'))
+	}
+}
 
 

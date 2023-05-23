@@ -2,6 +2,7 @@
 	# gw specific functions
 source('C:\\Users\\arik\\Documents\\GitHub\\seasonalForecasting_otherClimate_\\groundwaterModelingGRACEonly_functions.R')
 source('C:\\Users\\arik\\Documents\\GitHub\\seasonalForecasting_otherClimate_\\groundwaterModelingGRACEtileSelection_functions.R')
+source('C:\\Users\\arik\\Documents\\GitHub\\seasonalForecasting_otherClimate_\\longtermClimateReanalysis_functions.R')
 	# basin delineation functions
 source('C:\\Users\\arik\\Documents\\GitHub\\SurfaceWaterProjections\\surfaceWaterModeling_functions.r')
 
@@ -19,6 +20,8 @@ locationLat = customerLocations$Latitude[1]
 
 era5DataNCDF =  paste0('J:\\Cai_data\\Rabo\\Locations\\', basinName, '\\', basinName, '-testing-recent-era.nc')
 era5StartDate =  as.Date('1998-08-01') #as.Date('1980-01-01') # + ncvar_get(ncin_era5, 'time') for calculating actual dates 
+cmip6DataFile =  paste0('J:\\Cai_data\\Rabo\\Locations\\', basinName, '\\cmip6ncs\\')
+cmip6StartDate =  as.Date('1850-01-01') #as.Date('1980-01-01') # + ncvar_get(ncin_era5, 'time') for calculating actual dates 
 
 
 #climateHistLoc = 'J:\\Cai_data\\Rabo\\Locations\\BeefNW\\'
@@ -89,6 +92,9 @@ numSamples = 10000 #*50
 	# estimate average values and ranges for each variable
 predicand = as.vector(graceNeighborTS$Anomaly) ; predictor = as.vector(graceNeighborTS$Date)
 avgGraceTrend = mblm::mblm(predicand ~ predictor)$coefficients[2] * 365.25
+graceRadians = sin(2 * pi * lubridate::yday(graceNeighborTS$Date) / 365.25)
+graceSinMod = lm(predicand ~ graceRadians)
+
 
 variablesTable = data.table::data.table(
 		# totalInfiltration_f vars
@@ -123,6 +129,7 @@ variablesTable = data.table::data.table(
 calibrationTable = calibrateRegionalGWmodel_f(
 	variablesTable = variablesTable,
 	graceTS = graceTS,
+	graceSinMod = graceSinMod,
 	numSamples = numSamples,
 	maxNumRuns = numSamples^3, 
 #	targetMetric = 1, 					# 1 = KGE, 2 = NSE, 3 = MAE, 4 = RMSE, 5 = bias
@@ -145,7 +152,7 @@ for(thisVar in theseVars)	{
 	thisR2 = summary(lm(unlist(calibrationTable[, ..thisVar]) ~ calibrationTable$KGE))$r.squared
 	print(c(thisVar, thisPval, thisR2))
 	varsSignif = c(varsSignif, thisPval, thisR2)
-	plot(calibrationTable$KGE, calibrationTable$n)
+	plot(calibrationTable$KGE, unlist(calibrationTable[, ..thisVar]))
 }
 
 
@@ -154,23 +161,40 @@ for(thisVar in theseVars)	{
 #########################################################################################################
 	# step 5
 	# projections
-
-##!!!!!!!!!!!!!!!!!!!!!!!!!!
-## TODO
-##!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-# p1: stitch era5 to each cmip6 model
-# p2: run each combination of climate projection and model parameterization
-# p3: plotting 
-
-regionalGwModel = runRegionalGWmodel_f(
+	
+	# step 5-a
+	# import and convert projections climate data
+climateInputConversionLongterm_f(
+	basinName = basinName,
+	climateDataNCDF = cmip6DataFile,
+	climateDataNCDF_subName = 'pp_future_daily_works.nc',
+	tempConversionFactor = NA,
+	pptConversionFactor = NA,
+	avgTempGiven = FALSE, 
+	startDate = cmip6StartDate, 	# when does the clock of the netcdf start?
+	timeToDaysConversion = 1,	# convert time increments to days if necessary
 	dataOut_location = dataOut_location,
-	basinName = basinName, #'basin_name',
+	optionForPET = 1, 	# 1 = PET_fromTemp modified Pen-Mon, 
+	variableOrderOption = 'cmip6', # # 'era5' = [longitude,latitude,time]; 'cfs' = [longitude, latitude, member, step]; 'seas5' = [longitude, latitude, member, lead_time] for tmax and tmin but [lead_time, longitude, latitude, member] for tp_sum]
+	precipName = 'tp', 
+	limitedModels = NA)	# other options include: tp, tp_sum	
+
+
+
+	# step 5-b
+	# run each combination of climate projection and model parameterization
+
+projectRegionalGWmodel_f(
+	variablesTable = calibrationTable,
+	graceTS = graceTS,
+	graceSinMod = graceSinMod, 
+	dataOut_location = dataOut_location,
+	basinName = basinName,
 	thisLatitudeInDegrees = locationLat,
-	variablesTableRow = variablesTable[thisRow,],
 	startYear = 2000,
 	endYear = 2099)
-
+	
+# p3: plotting 
 
 
 #########################################################################################################
