@@ -102,6 +102,7 @@ variablesTable = data.table::data.table(
 	crn = abs(rnorm(numSamples, 60, 10)),								# curve number
 	Smax = sample(seq(100, 1000, 1), numSamples, replace=TRUE),						 		# maximum rz soil moisture storage
 	Ia_scalar = abs(rnorm(numSamples, 0.15, 1)),						# infiltration 
+	managedAquiferRecharge = FALSE,						
 		# gwRecharge_f vars
 	rcScl_sm = sample(seq(0.01, .5, 0.01), numSamples, replace=TRUE),	# water retention curve scalar for soil moisture
 	rcExp_sm = sample(seq(1, 2, 0.01), numSamples, replace=TRUE),	# water retention curve exponent for soil moisture
@@ -117,8 +118,10 @@ variablesTable = data.table::data.table(
 		# cropWaterNeeds_f vars
 	avgCropWaterNeeds = abs(rnorm(numSamples, 900, 100)) / 365.25,		# for alfalfa #1010  pistachio in ther san J; c(900, 1200) # citrus
 	petGlobAvg =  abs(rnorm(numSamples, 1750, 250)) / 365.25,
+	mulching = FALSE,
 		# irrigation_f vars
 	irrigatedPctArea = abs(rnorm(numSamples, .3, 0.15)),		# pct area that is regularly irrigated with gw
+	dripIrrigation = TRUE,
 		# netGwFlow_f vars
 	regionalNetGwRtOfChange = rnorm(numSamples, avgGraceTrend, abs(avgGraceTrend) * 0.5),	# what is the long-term trend in gw resources, here likely from abutting GRACE / GRACE-FO tiles, given in mm / day; should be a small number
 	initialStorageDifference = sample(seq(-2000,2000,1), numSamples, replace=TRUE),	# what is the initial head on location relative to regional average (pos is higher regional so net inflow, neg is lower regional so net outflow)
@@ -143,6 +146,9 @@ calibrationTable = calibrateRegionalGWmodel_f(
 	endYear = 2099)
 
 summary(calibrationTable)
+#calibrationTable = data.table::fread(paste0(dataOut_location, 'WestHillsFarmsCalOut.csv'))
+data.table::fwrite(calibrationTable, paste0(dataOut_location, 'calVal_', basinName, variablesTable$mulching[1], variablesTable$dripIrrigation[1], variablesTable$managedAquiferRecharge[1], '.csv'))
+#calibrationTable = data.table::fread(paste0(dataOut_location, 'calVal_', basinName, variablesTable$mulching[1], variablesTable$dripIrrigation[1], variablesTable$managedAquiferRecharge[1], '.csv'))
 
 theseVars = names(calibrationTable)
 varsSignif = NA
@@ -194,12 +200,534 @@ projectRegionalGWmodel_f(
 	startYear = 2000,
 	endYear = 2099)
 	
-# p3: plotting 
+	
+	# step 5-c
+	# plotting 
+######################################################
+#### !!!!!!!!!!!!!
+#### needs to be rewritten as a function
+#### !!!!!!!!!!!!!
+######################################################
+dataNamesDT = data.frame(
+	columnName = c('totalInfiltration',			 'soilMoistureVol',	 'gwRecharge', 						'PET', 			'AET', 			'cropWaterNeeds', 				'irrigationNeeded',			 'netGwFlow', 					'subsidizedRegionalStorage'),
+	sclr = c(		365.25, 						1,					365.25,							365.25,			365.25,			365.25,							365.25,							365.25,							1),
+	ylabName = c('Infiltration (mm / yr)', 'Soil Moisture (mm)',  'Annual Avg Gw Recharge (mm)', 'PET (mm / day)', 'AET (mm / day)', 'Crop Water Needs (mm / yr)', 'Irrigation Demand (mm / yr)', 'Regional Subsidy (mm / yr)','Change in Gw Storage (mm)'),
+	thisVarName = c('_infil', 		      '_smAvg', 				'_gwRech',						'_pet', 			'_aet' ,			'_cwn',							'_irrigDmd', 					'_netGwFl', 				'gwStorageProjections'))								
+
+dataHighlights = data.frame(
+	Scenario = NA, Location = NA, Variable = NA, Trend = NA, Significance = NA)
+
+for(thisScen in 1:3)	{
+	
+	projectedData = readRDS(paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, 
+		calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1], '.RData'))
+	
+	for(thisVar in 1:nrow(dataNamesDT))	{
+		thisVarMtrx = matrix(nrow=nrow(projectedData[[1]]), ncol=length(projectedData))
+		allDates = projectedData[[1]]$Date
+
+
+		for(i in 1:length(projectedData))	{
+			thisDF = projectedData[[i]]
+			thisVarMtrx[ , i] = unlist(subset(thisDF, select = dataNamesDT$columnName[thisVar]) * dataNamesDT$sclr[thisVar])
+		}
+
+		thisYlab = dataNamesDT$ylabName[thisVar] # 'Regional Subsidy (mm / yr)' #'Irrigation Demand (mm / yr)' #'Crop Water Needs (mm / yr)' #'AET (mm / day)' #'PET (mm / day)' #'Annual Avg Gw Recharge (mm)' #'Soil Moisture (mm)' #'Annual Avg Infiltration (mm)'
+		thisVarName = dataNamesDT$thisVarName[thisVar] #'_irrigDmd' #'_cwn' #'_aet' #'_pet' #'_gwRech' #'_smAvg' #'_annAvgInfl'
+
+		for(thisLoc in 1:nrow(customerLocations))	{
+			locationName = unlist(customerLocations[thisLoc, "Location (name)"])
+			
+			vectoredMtrx = as.vector(thisVarMtrx)
+			repDates = rep(allDates, ncol(thisVarMtrx))
+			lnMod = speedglm::speedlm(vectoredMtrx ~ repDates)
+
+			dataHighlights = rbind(dataHighlights, data.frame(
+			Scenario = scenNames[thisScen],
+			Location = locationName,
+			Variable = thisYlab,
+			Trend = lnMod$coefficients[2] * 365.25,
+			Significance = summary(lnMod)$f.pvalue)) 
+
+
+			png(paste0(dataOut_location, locationName, '_', scenNames[thisScen],thisVarName, '.png'), width=1200, height=600)
+			par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+			windowsFonts(A = windowsFont("Roboto"))
+			
+			kmeansSmoothQ05 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.05, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ95 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.95, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			plot(allDates, apply(thisVarMtrx, 1, mean),
+				ylim=c(min(kmeansSmoothQ05), max(kmeansSmoothQ95)),
+				type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+				main='', ylab=thisYlab, xlab='',
+				col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+				family='A')
+				
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ05, rev(kmeansSmoothQ95)),
+					col=adjustcolor('#0098B2', offset = c(0.95,0.95,0.95,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			kmeansSmoothQ10 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.10, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ90 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.90, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ10, rev(kmeansSmoothQ90)),
+					col=adjustcolor('#0098B2', offset = c(0.9,0.9,0.9,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			kmeansSmoothQ25 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.25, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ75 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.75, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ25, rev(kmeansSmoothQ75)),
+					col=adjustcolor('#0098B2', offset = c(0.8,0.8,0.8,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			abline(h=0, lwd=3, lty=3, col='grey65')
+
+			kmeansSmooth = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) mean(x, na.rm=TRUE)) , bandwidth = 365, kernel = 'box')$y, 'extend')
+			lines(allDates, kmeansSmooth,
+				col='#0098B2', lwd=3)
+				
+			usr <- par("usr")   # save old user/default/system coordinates
+			par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+			text(x=0.02, y=0.05, scenNames[thisScen], col='grey25', cex=2.2, pos=4)
+			par(usr = usr) # restore original user coordinates
+
+			dev.off()
+		}
+	}
+}
+fwrite(dataHighlights, paste0(dataOut_location, locationName, '_', 'projectionsHighlights.csv')
+
+	# cal val plot
+	# cal / val plots
+png(paste0(dataOut_location, locationName, '_', 'calVal_gwStorageProjections.png'), width=1200, height=600)
+par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+windowsFonts(A = windowsFont("Roboto"))
+
+whichCalDates = which(projectedData[[1]]$Date < max(graceTS$Date))
+calDates = projectedData[[1]]$Date[whichCalDates]
+calMtrx = thisVarMtrx[whichCalDates, ]
+thisYlab = 'Groundwater Storage (mm)'
+
+kmeansSmoothQ05 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.05, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+kmeansSmoothQ95 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.95, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+plot(calDates, apply(calMtrx, 1, mean),
+	ylim=c(min(kmeansSmoothQ05), max(kmeansSmoothQ95)),
+	type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+	main='', ylab=thisYlab, xlab='',
+	col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+	family='A')
+			
+polygon(x=c(calDates, rev(calDates)), 
+		y=c(kmeansSmoothQ05, rev(kmeansSmoothQ95)),
+		#col=adjustcolor('#0098B2', offset = c(0.95,0.95,0.95,0)), border=NA)
+		col=adjustcolor('#0098B2', alpha=.1), border=NA)
+
+kmeansSmoothQ10 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.10, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+kmeansSmoothQ90 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.90, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+polygon(x=c(calDates, rev(calDates)), 
+		y=c(kmeansSmoothQ10, rev(kmeansSmoothQ90)),
+#		col=adjustcolor('#0098B2', offset = c(0.9,0.9,0.9,0)), border=NA)
+		col=adjustcolor('#0098B2', alpha=.1), border=NA)
+
+kmeansSmoothQ25 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.25, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+kmeansSmoothQ75 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.75, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+polygon(x=c(calDates, rev(calDates)), 
+		y=c(kmeansSmoothQ25, rev(kmeansSmoothQ75)),
+#		col=adjustcolor('#0098B2', offset = c(0.8,0.8,0.8,0)), border=NA)
+		col=adjustcolor('#0098B2', alpha=.1), border=NA)
+
+abline(h=0, lwd=3, lty=3, col='grey65')
+
+kmeansSmooth = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) mean(x, na.rm=TRUE)) , bandwidth = 1, kernel = 'box')$y, 'extend')
+lines(calDates, kmeansSmooth,
+	col='#0098B2', lwd=2)
+			
+points(graceTS$Date, graceTS$Anomaly, 
+	col='grey25', lwd=2, pch=1)
+lines(graceTS$Date, graceTS$Anomaly, 
+	col='grey25', lwd=1, lty=1)
+
+usr <- par("usr")   # save old user/default/system coordinates
+par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+text(x=0.02, y=0.15, 'Model Ensemble', col='#0098B2', cex=2.2, pos=4)
+text(x=0.02, y=0.08, 'Benchmark Data', col='grey25', cex=2.2, pos=4)
+par(usr = usr) # restore original user coordinates
+
+dev.off()
+
+
+
 
 
 #########################################################################################################
 	# step 6
 	# mitigating actions
+
+	# MAR
+calibrationTable$managedAquiferRecharge = TRUE
+projectRegionalGWmodel_f(
+	variablesTable = calibrationTable,
+	graceTS = graceTS,
+	graceSinMod = graceSinMod, 
+	dataOut_location = dataOut_location,
+	basinName = basinName,
+	thisLatitudeInDegrees = locationLat,
+	startYear = 2000,
+	endYear = 2099)
+
+
+######################################################
+#### !!!!!!!!!!!!!
+#### needs to be rewritten as a function
+#### !!!!!!!!!!!!!
+######################################################
+dataNamesDT = data.frame(
+	columnName = c('totalInfiltration',			 'soilMoistureVol',	 'gwRecharge', 						'PET', 			'AET', 			'cropWaterNeeds', 				'irrigationNeeded',			 'netGwFlow', 					'subsidizedRegionalStorage'),
+	sclr = c(		365.25, 						1,					365.25,							365.25,			365.25,			365.25,							365.25,							365.25,							1),
+	ylabName = c('Infiltration (mm / yr)', 'Soil Moisture (mm)',  'Annual Avg Gw Recharge (mm)', 'PET (mm / day)', 'AET (mm / day)', 'Crop Water Needs (mm / yr)', 'Irrigation Demand (mm / yr)', 'Regional Subsidy (mm / yr)','Change in Gw Storage (mm)'),
+	thisVarName = c('_infil', 		      '_smAvg', 				'_gwRech',						'_pet', 			'_aet' ,			'_cwn',							'_irrigDmd', 					'_netGwFl', 				'gwStorageProjections'))								
+
+dataHighlights = data.frame(
+	Scenario = NA, Location = NA, Variable = NA, Trend = NA, Significance = NA)
+
+for(thisScen in 1:3)	{
+	
+	projectedData = readRDS(paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, 
+		calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1], '.RData'))
+	
+	for(thisVar in 1:nrow(dataNamesDT))	{
+		thisVarMtrx = matrix(nrow=nrow(projectedData[[1]]), ncol=length(projectedData))
+		allDates = projectedData[[1]]$Date
+
+
+		for(i in 1:length(projectedData))	{
+			thisDF = projectedData[[i]]
+			thisVarMtrx[ , i] = unlist(subset(thisDF, select = dataNamesDT$columnName[thisVar]) * dataNamesDT$sclr[thisVar])
+		}
+
+		thisYlab = dataNamesDT$ylabName[thisVar] # 'Regional Subsidy (mm / yr)' #'Irrigation Demand (mm / yr)' #'Crop Water Needs (mm / yr)' #'AET (mm / day)' #'PET (mm / day)' #'Annual Avg Gw Recharge (mm)' #'Soil Moisture (mm)' #'Annual Avg Infiltration (mm)'
+		thisVarName = dataNamesDT$thisVarName[thisVar] #'_irrigDmd' #'_cwn' #'_aet' #'_pet' #'_gwRech' #'_smAvg' #'_annAvgInfl'
+
+		for(thisLoc in 1:nrow(customerLocations))	{
+			locationName = unlist(customerLocations[thisLoc, "Location (name)"])
+			
+			vectoredMtrx = as.vector(thisVarMtrx)
+			repDates = rep(allDates, ncol(thisVarMtrx))
+			lnMod = speedglm::speedlm(vectoredMtrx ~ repDates)
+
+			dataHighlights = rbind(dataHighlights, data.frame(
+			Scenario = scenNames[thisScen],
+			Location = locationName,
+			Variable = thisYlab,
+			Trend = lnMod$coefficients[2] * 365.25,
+			Significance = summary(lnMod)$f.pvalue)) 
+
+
+			png(paste0(dataOut_location, locationName, '_', scenNames[thisScen],thisVarName, '.png'), width=1200, height=600)
+			par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+			windowsFonts(A = windowsFont("Roboto"))
+			
+			kmeansSmoothQ05 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.05, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ95 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.95, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			plot(allDates, apply(thisVarMtrx, 1, mean),
+				ylim=c(min(kmeansSmoothQ05), max(kmeansSmoothQ95)),
+				type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+				main='', ylab=thisYlab, xlab='',
+				col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+				family='A')
+				
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ05, rev(kmeansSmoothQ95)),
+					col=adjustcolor('#0098B2', offset = c(0.95,0.95,0.95,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			kmeansSmoothQ10 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.10, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ90 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.90, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ10, rev(kmeansSmoothQ90)),
+					col=adjustcolor('#0098B2', offset = c(0.9,0.9,0.9,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			kmeansSmoothQ25 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.25, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ75 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.75, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ25, rev(kmeansSmoothQ75)),
+					col=adjustcolor('#0098B2', offset = c(0.8,0.8,0.8,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			abline(h=0, lwd=3, lty=3, col='grey65')
+
+			kmeansSmooth = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) mean(x, na.rm=TRUE)) , bandwidth = 365, kernel = 'box')$y, 'extend')
+			lines(allDates, kmeansSmooth,
+				col='#0098B2', lwd=3)
+				
+			usr <- par("usr")   # save old user/default/system coordinates
+			par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+			text(x=0.02, y=0.05, scenNames[thisScen], col='grey25', cex=2.2, pos=4)
+			par(usr = usr) # restore original user coordinates
+
+			dev.off()
+		}
+	}
+}
+fwrite(dataHighlights, paste0(dataOut_location, locationName, '_', 'projectionsHighlights', 
+	calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1], '.csv'))
+
+
+
+
+
+
+	# mulching
+calibrationTable$managedAquiferRecharge = FALSE
+calibrationTable$mulching = TRUE
+projectRegionalGWmodel_f(
+	variablesTable = calibrationTable,
+	graceTS = graceTS,
+	graceSinMod = graceSinMod, 
+	dataOut_location = dataOut_location,
+	basinName = basinName,
+	thisLatitudeInDegrees = locationLat,
+	startYear = 2000,
+	endYear = 2099)
+
+
+######################################################
+#### !!!!!!!!!!!!!
+#### needs to be rewritten as a function
+#### !!!!!!!!!!!!!
+######################################################
+dataNamesDT = data.frame(
+	columnName = c('totalInfiltration',			 'soilMoistureVol',	 'gwRecharge', 						'PET', 			'AET', 			'cropWaterNeeds', 				'irrigationNeeded',			 'netGwFlow', 					'subsidizedRegionalStorage'),
+	sclr = c(		365.25, 						1,					365.25,							365.25,			365.25,			365.25,							365.25,							365.25,							1),
+	ylabName = c('Infiltration (mm / yr)', 'Soil Moisture (mm)',  'Annual Avg Gw Recharge (mm)', 'PET (mm / day)', 'AET (mm / day)', 'Crop Water Needs (mm / yr)', 'Irrigation Demand (mm / yr)', 'Regional Subsidy (mm / yr)','Change in Gw Storage (mm)'),
+	thisVarName = c('_infil', 		      '_smAvg', 				'_gwRech',						'_pet', 			'_aet' ,			'_cwn',							'_irrigDmd', 					'_netGwFl', 				'gwStorageProjections'))								
+
+dataHighlights = data.frame(
+	Scenario = NA, Location = NA, Variable = NA, Trend = NA, Significance = NA)
+
+for(thisScen in 1:3)	{
+	
+	projectedData = readRDS(paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, 
+		calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1], '.RData'))
+	
+	for(thisVar in 1:nrow(dataNamesDT))	{
+		thisVarMtrx = matrix(nrow=nrow(projectedData[[1]]), ncol=length(projectedData))
+		allDates = projectedData[[1]]$Date
+
+
+		for(i in 1:length(projectedData))	{
+			thisDF = projectedData[[i]]
+			thisVarMtrx[ , i] = unlist(subset(thisDF, select = dataNamesDT$columnName[thisVar]) * dataNamesDT$sclr[thisVar])
+		}
+
+		thisYlab = dataNamesDT$ylabName[thisVar] # 'Regional Subsidy (mm / yr)' #'Irrigation Demand (mm / yr)' #'Crop Water Needs (mm / yr)' #'AET (mm / day)' #'PET (mm / day)' #'Annual Avg Gw Recharge (mm)' #'Soil Moisture (mm)' #'Annual Avg Infiltration (mm)'
+		thisVarName = dataNamesDT$thisVarName[thisVar] #'_irrigDmd' #'_cwn' #'_aet' #'_pet' #'_gwRech' #'_smAvg' #'_annAvgInfl'
+
+		for(thisLoc in 1:nrow(customerLocations))	{
+			locationName = unlist(customerLocations[thisLoc, "Location (name)"])
+			
+			vectoredMtrx = as.vector(thisVarMtrx)
+			repDates = rep(allDates, ncol(thisVarMtrx))
+			lnMod = speedglm::speedlm(vectoredMtrx ~ repDates)
+
+			dataHighlights = rbind(dataHighlights, data.frame(
+			Scenario = scenNames[thisScen],
+			Location = locationName,
+			Variable = thisYlab,
+			Trend = lnMod$coefficients[2] * 365.25,
+			Significance = summary(lnMod)$f.pvalue)) 
+
+
+			png(paste0(dataOut_location, locationName, '_', scenNames[thisScen],thisVarName, '.png'), width=1200, height=600)
+			par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+			windowsFonts(A = windowsFont("Roboto"))
+			
+			kmeansSmoothQ05 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.05, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ95 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.95, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			plot(allDates, apply(thisVarMtrx, 1, mean),
+				ylim=c(min(kmeansSmoothQ05), max(kmeansSmoothQ95)),
+				type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+				main='', ylab=thisYlab, xlab='',
+				col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+				family='A')
+				
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ05, rev(kmeansSmoothQ95)),
+					col=adjustcolor('#0098B2', offset = c(0.95,0.95,0.95,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			kmeansSmoothQ10 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.10, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ90 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.90, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ10, rev(kmeansSmoothQ90)),
+					col=adjustcolor('#0098B2', offset = c(0.9,0.9,0.9,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			kmeansSmoothQ25 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.25, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ75 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.75, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ25, rev(kmeansSmoothQ75)),
+					col=adjustcolor('#0098B2', offset = c(0.8,0.8,0.8,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			abline(h=0, lwd=3, lty=3, col='grey65')
+
+			kmeansSmooth = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) mean(x, na.rm=TRUE)) , bandwidth = 365, kernel = 'box')$y, 'extend')
+			lines(allDates, kmeansSmooth,
+				col='#0098B2', lwd=3)
+				
+			usr <- par("usr")   # save old user/default/system coordinates
+			par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+			text(x=0.02, y=0.05, scenNames[thisScen], col='grey25', cex=2.2, pos=4)
+			par(usr = usr) # restore original user coordinates
+
+			dev.off()
+		}
+	}
+}
+fwrite(dataHighlights, paste0(dataOut_location, locationName, '_', 'projectionsHighlights', 
+	calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1], '.csv'))
+
+
+
+
+
+
+
+
+
+	# MAR + mulching
+calibrationTable$managedAquiferRecharge = TRUE
+calibrationTable$mulching = TRUE
+projectRegionalGWmodel_f(
+	variablesTable = calibrationTable,
+	graceTS = graceTS,
+	graceSinMod = graceSinMod, 
+	dataOut_location = dataOut_location,
+	basinName = basinName,
+	thisLatitudeInDegrees = locationLat,
+	startYear = 2000,
+	endYear = 2099)
+
+
+######################################################
+#### !!!!!!!!!!!!!
+#### needs to be rewritten as a function
+#### !!!!!!!!!!!!!
+######################################################
+dataNamesDT = data.frame(
+	columnName = c('totalInfiltration',			 'soilMoistureVol',	 'gwRecharge', 						'PET', 			'AET', 			'cropWaterNeeds', 				'irrigationNeeded',			 'netGwFlow', 					'subsidizedRegionalStorage'),
+	sclr = c(		365.25, 						1,					365.25,							365.25,			365.25,			365.25,							365.25,							365.25,							1),
+	ylabName = c('Infiltration (mm / yr)', 'Soil Moisture (mm)',  'Annual Avg Gw Recharge (mm)', 'PET (mm / day)', 'AET (mm / day)', 'Crop Water Needs (mm / yr)', 'Irrigation Demand (mm / yr)', 'Regional Subsidy (mm / yr)','Change in Gw Storage (mm)'),
+	thisVarName = c('_infil', 		      '_smAvg', 				'_gwRech',						'_pet', 			'_aet' ,			'_cwn',							'_irrigDmd', 					'_netGwFl', 				'gwStorageProjections'))								
+
+dataHighlights = data.frame(
+	Scenario = NA, Location = NA, Variable = NA, Trend = NA, Significance = NA)
+
+for(thisScen in 1:3)	{
+	
+	projectedData = readRDS(paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, 
+		calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1], '.RData'))
+	
+	for(thisVar in 1:nrow(dataNamesDT))	{
+		thisVarMtrx = matrix(nrow=nrow(projectedData[[1]]), ncol=length(projectedData))
+		allDates = projectedData[[1]]$Date
+
+
+		for(i in 1:length(projectedData))	{
+			thisDF = projectedData[[i]]
+			thisVarMtrx[ , i] = unlist(subset(thisDF, select = dataNamesDT$columnName[thisVar]) * dataNamesDT$sclr[thisVar])
+		}
+
+		thisYlab = dataNamesDT$ylabName[thisVar] # 'Regional Subsidy (mm / yr)' #'Irrigation Demand (mm / yr)' #'Crop Water Needs (mm / yr)' #'AET (mm / day)' #'PET (mm / day)' #'Annual Avg Gw Recharge (mm)' #'Soil Moisture (mm)' #'Annual Avg Infiltration (mm)'
+		thisVarName = dataNamesDT$thisVarName[thisVar] #'_irrigDmd' #'_cwn' #'_aet' #'_pet' #'_gwRech' #'_smAvg' #'_annAvgInfl'
+
+		for(thisLoc in 1:nrow(customerLocations))	{
+			locationName = unlist(customerLocations[thisLoc, "Location (name)"])
+			
+			vectoredMtrx = as.vector(thisVarMtrx)
+			repDates = rep(allDates, ncol(thisVarMtrx))
+			lnMod = speedglm::speedlm(vectoredMtrx ~ repDates)
+
+			dataHighlights = rbind(dataHighlights, data.frame(
+			Scenario = scenNames[thisScen],
+			Location = locationName,
+			Variable = thisYlab,
+			Trend = lnMod$coefficients[2] * 365.25,
+			Significance = summary(lnMod)$f.pvalue)) 
+
+
+			png(paste0(dataOut_location, locationName, '_', scenNames[thisScen],thisVarName, '.png'), width=1200, height=600)
+			par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+			windowsFonts(A = windowsFont("Roboto"))
+			
+			kmeansSmoothQ05 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.05, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ95 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.95, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			plot(allDates, apply(thisVarMtrx, 1, mean),
+				ylim=c(min(kmeansSmoothQ05), max(kmeansSmoothQ95)),
+				type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+				main='', ylab=thisYlab, xlab='',
+				col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+				family='A')
+				
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ05, rev(kmeansSmoothQ95)),
+					col=adjustcolor('#0098B2', offset = c(0.95,0.95,0.95,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			kmeansSmoothQ10 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.10, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ90 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.90, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ10, rev(kmeansSmoothQ90)),
+					col=adjustcolor('#0098B2', offset = c(0.9,0.9,0.9,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			kmeansSmoothQ25 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.25, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			kmeansSmoothQ75 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.75, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+			polygon(x=c(allDates, rev(allDates)), 
+					y=c(kmeansSmoothQ25, rev(kmeansSmoothQ75)),
+					col=adjustcolor('#0098B2', offset = c(0.8,0.8,0.8,0)), border=NA)
+		#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+			abline(h=0, lwd=3, lty=3, col='grey65')
+
+			kmeansSmooth = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) mean(x, na.rm=TRUE)) , bandwidth = 365, kernel = 'box')$y, 'extend')
+			lines(allDates, kmeansSmooth,
+				col='#0098B2', lwd=3)
+				
+			usr <- par("usr")   # save old user/default/system coordinates
+			par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+			text(x=0.02, y=0.05, scenNames[thisScen], col='grey25', cex=2.2, pos=4)
+			par(usr = usr) # restore original user coordinates
+
+			dev.off()
+		}
+	}
+}
+fwrite(dataHighlights, paste0(dataOut_location, locationName, '_', 'projectionsHighlights', 
+	calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1], '.csv'))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

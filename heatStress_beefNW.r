@@ -5,7 +5,7 @@ library(data.table)
 
 ##########################################################
 # loading data
-dataPath = 'C:\\Users\\18033\\Documents\\CaiData\\temp_locationsForRabo\\Locations\\BeefNW\\' #'J:\\Cai_data\\Rabo\\Locations\\BeefNW\\'
+dataPath = 'J:\\Cai_data\\Rabo\\Locations\\BeefNW\\' # 'C:\\Users\\18033\\Documents\\CaiData\\temp_locationsForRabo\\Locations\\BeefNW\\' #
 cmipDataName = 'pp_future_daily.nc'
 startDateCmip = '2015-01-01'
 nc_allDat = nc_open(paste0(dataPath, cmipDataName))
@@ -16,6 +16,7 @@ nc_date = ncvar_get(nc_allDat, 'time') + as.Date(startDateCmip)
 nc_year = lubridate::year(nc_date)
 nc_location = ncvar_get(nc_allDat, 'location')
 nc_model = ncvar_get(nc_allDat, 'model')
+nc_scen = ncvar_get(nc_allDat, 'scenario')
 	#[time,model,scenario,location] 
 nc_rh = ncvar_get(nc_allDat, 'rh')
 nc_ssrd = ncvar_get(nc_allDat, 'ssrd')
@@ -29,38 +30,54 @@ hliThresholds = seq(86,96,2)
 
 countArray = array(NA, dim = c(length(unique(nc_year)), length(hliThresholds), length(nc_location), length(nc_model)))
 
-
 for(thisLoc in 1:length(nc_location))	{
-	for(thisModel in 1:length(thisModel))	{
+	for(thisScen in 1:length(nc_scen))	{
+		for(thisModel in 1:length(thisModel))	{
+			T2m = (nc_tmin[ , thisModel, thisScen, thisLoc] + nc_tmax[ , thisModel, thisScen, thisLoc]) / 2
+#			T2m = nc_tmax[ , thisModel, thisScen, thisLoc]
+			RH_pct = nc_rh[ , thisModel, thisScen, thisLoc]
+			RH_dec = RH_pct / 100
+			windspeed = nc_ws[ , thisModel, thisScen, thisLoc] * 0.2777777777777778 # km / h to m / s
+			solRad = nc_ssrd[ , thisModel, thisScen, thisLoc]
+
+				# calculating balck globe temperture
+				# wet bulb temp (Twb) from https://journals.physiology.org/doi/full/10.1152/japplphysiol.00738.2021
+					# rh in %
+			Twb = T2m * atan (0.151977 * (RH_pct + 8.313659)^(1/2)) + 
+					atan (T2m + RH_pct) - atan (RH_pct - 1.676331) + 
+					0.00391838 * (RH_pct^(3/2)) * atan (0.023101 * RH_pct) -
+					4.686035
+
+				# black globe temp (Tbg) from https://www.weather.gov/media/tsa/pdf/WBGTpaper2.pdf
+			#	# BGT = 0.7NWB + 0.2GT + 0.1DB
+			#Tbg = ((0.7 * (T2m * 9 / 5 + 32) + 0.3 * Twb) - 32) * (5/9)
+			#bg = 0.7 * T2m + 0.3 * Twb 
+				# alternative black globe temp (Tbg) https://www.engineeringtoolbox.com/resultant-globe-temperature-d_1806.html
+			# Tbg = 0.5 tmr + 0.5 ta    , ta ia air empt and tmr is mean radiation temperature
+				# another alternative from https://rmets.onlinelibrary.wiley.com/doi/pdf/10.1002/met.1631
+			# Tbg = 0.01498SR + 1.184Ta – 0.0789RH – 2.739
+			Tbg = 0.01498 * solRad + 1.184 * T2m - 0.0789 * RH_pct - 2.739
+				
+			# HLI from https://pubmed.ncbi.nlm.nih.gov/17911236/
+				# windspeed in m/s; temps in C; rh in decimal
+				# HLI(BG>25) = 8.62 + (0.38 x RH) + (1.55 x BG) - (0.5 x WS) + e((2.4-WS))
+			HLI_high = 8.62 + (0.38 * RH_dec) + (1.55 * Tbg) - (0.5 * windspeed) + exp(2.4 - windspeed)
+				# HLI(BG<25) = 10.66 + (0.28 x RH) + (1.3 x BG) - WS
+			HLI_low = 10.66 + (0.28 * RH_dec) + (1.3 * Tbg) - windspeed
+			
+			HLI_threshold = 25
+			HLIlowDays = which(Tbg < HLI_threshold)
+			HLI_all = HLI_high
+			HLI_all[HLIlowDays] = HLI_low[HLIlowDays]
 		
-
-	# calculating balck globe temperture
-	# wet bulb temp (Twb) from https://journals.physiology.org/doi/full/10.1152/japplphysiol.00738.2021
-		# rh in %
-Twb = T2m * arctan (0.151977 * (RH_pct + 8.313659)^(1/2)) + 
-		arctan (T2m + RH_pct) - arctan (RH_pct - 1.676331) + 
-		0.00391838 * (RH_pct^(3/2)) * arctan (0.023101 * RH_pct) -
-		4.686035
-
-	# black globe temp (Tbg) from https://www.weather.gov/media/tsa/pdf/WBGTpaper2.pdf
-Tbg = 0.7 * T2m + 0.3 * Twb 
-
-	# HLI from https://pubmed.ncbi.nlm.nih.gov/17911236/
-		# windspeed in m/s; temps in C; rh in decimal
-		# HLI(BG>25) = 8.62 + (0.38 x RH) + (1.55 x BG) - (0.5 x WS) + e((2.4-WS))
-	HLI_high = 8.62 + (0.38 * RH_dec) + (1.55 * Tbg) - (0.5 * winspeed) + exp(2.4 - winspeed)
-		# HLI(BG<25) = 10.66 + (0.28 x RH) + (1.3 x BG) - WS
-	HLI_low = 10.66 + (0.28 * RH_dec) + (1.3 * Tbg) - windspeed
-
-#A threshold HLI above which cattle of different genotypes gain body heat was developed for 7 genotypes.
-#The threshold for unshaded black B. taurus steers was 86, and for 
-#unshaded B. indicus (100%) the threshold was 96.
-#Threshold adjustments were developed for factors such as 
-#	coat color, health status, access to shade, drinking water temperature, and manure management.
-#Upward and downward adjustments are possible
-#	upward adjustments occur when cattle have access to shade (+3 to +7) and 
-#	downward adjustments occur when cattle are showing clinical signs of disease (-5). 
-
+			#A threshold HLI above which cattle of different genotypes gain body heat was developed for 7 genotypes.
+			#The threshold for unshaded black B. taurus steers was 86, and for 
+			#unshaded B. indicus (100%) the threshold was 96.
+			#Threshold adjustments were developed for factors such as 
+			#	coat color, health status, access to shade, drinking water temperature, and manure management.
+			#Upward and downward adjustments are possible
+			#	upward adjustments occur when cattle have access to shade (+3 to +7) and 
+			#	downward adjustments occur when cattle are showing clinical signs of disease (-5). 
 
 
 

@@ -53,8 +53,8 @@ graceTileSelection_f = function(
 		nextLweThickLand = graceLWEthickLand[closeishLons[thisWeight], closeishLats[thisWeight], ] 
 		nextUncertLand = graceUncertainty[closeishLons[thisWeight], closeishLats[thisWeight], ] 
 		if(any(is.na(nextLweThickLand))) { nextLweThickLand[is.na(nextLweThickLand)] = 0 ; nextUncertLand[is.na(nextUncertLand)] = 0}
-		theseLweThickLand = theseLweThickLand + nextLweThickLand * boxWeighting[thisWeight]# input nc is in format [lon, lat, decade, rcpScen, valueClass]
-		theseUncertLand = theseUncertLand + nextUncertLand * boxWeighting[thisWeight]# input nc is in format [lon, lat, decade, rcpScen, valueClass]
+		theseLweThickLand = theseLweThickLand + nextLweThickLand * boxWeighting[thisWeight]
+		theseUncertLand = theseUncertLand + nextUncertLand * boxWeighting[thisWeight]
 	}
 	
 	return(data.table::data.table(Date = graceDates, Anomaly = theseLweThickLand, Uncertainty = theseUncertLand))
@@ -118,8 +118,8 @@ graceNeighborTileSelection_f = function(
 		nextLweThickLand = graceLWEthickLand[closeishLons[thisWeight], closeishLats[thisWeight], ] 
 		nextUncertLand = graceUncertainty[closeishLons[thisWeight], closeishLats[thisWeight], ] 
 		if(any(is.na(nextLweThickLand))) { nextLweThickLand[is.na(nextLweThickLand)] = 0 ; nextUncertLand[is.na(nextUncertLand)] = 0}
-		theseLweThickLand = theseLweThickLand + nextLweThickLand * boxWeighting[thisWeight]# input nc is in format [lon, lat, decade, rcpScen, valueClass]
-		theseUncertLand = theseUncertLand + nextUncertLand * boxWeighting[thisWeight]# input nc is in format [lon, lat, decade, rcpScen, valueClass]
+		theseLweThickLand = theseLweThickLand + nextLweThickLand * boxWeighting[thisWeight]
+		theseUncertLand = theseUncertLand + nextUncertLand * boxWeighting[thisWeight]
 	}
 	
 	return(data.table::data.table(Date = graceDates, Anomaly = theseLweThickLand, Uncertainty = theseUncertLand))

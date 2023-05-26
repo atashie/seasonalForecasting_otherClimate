@@ -10,12 +10,15 @@ totalInfiltration_f = function(
 	irrigationApplied = 0,					# timeseries of irrigation (daily); defaults to 0
 	crn = 50,								# curve number
 	Smax = 500,								# maximum rz soil moisture storage
-	Ia_scalar = 0.1)						# infiltration 
+	Ia_scalar = 0.1,
+	irrigatedPctArea = 0.2,
+	managedAquiferRecharge = FALSE)						
 	{	
-
 	Ia = Ia_scalar * Smax
 	totWaterInput = PPT + irrigationApplied
-	totalInfiltration = totWaterInput - ifelse(totWaterInput > Ia, (totWaterInput - Ia)^2 / (totWaterInput - Ia + Smax), 0)
+	runoff = (totWaterInput - Ia)^2 / (totWaterInput - Ia + Smax)
+	if(managedAquiferRecharge)	{runoff = runoff - irrigatedPctArea * runoff}
+	totalInfiltration = totWaterInput - ifelse(totWaterInput > Ia, runoff, 0)
 	return(totalInfiltration) # [mm]
 	}
 		
@@ -106,8 +109,10 @@ gwRecharge_f = function(
 cropWaterNeeds_f = function(
 	petTS = petFromClimate,
 	avgCropWaterNeeds = 900 / 365.25,		# for alfalfa #1010  pistachio in ther san J; c(900, 1200) # citrus
-	petGlobAvg = 1500 / 365.25)
+	petGlobAvg = 1500 / 365.25,
+	mulching = FALSE)
 	{
+	if(mulching)	{avgCropWaterNeeds = avgCropWaterNeeds * 0.9}	# needs to be better justified, but there is not much quantification in the literature
 	cropWaterNeeds = sqrt(petTS / petGlobAvg) * avgCropWaterNeeds
 	return(cropWaterNeeds)
 	}
@@ -116,9 +121,11 @@ cropWaterNeeds_f = function(
 irrigation_f = function(
 	irrigatedPctArea = .2,		# pct area that is regularly irrigated with gw
 	cropWaterNeedsTS = cropWaterNeeds,	#ts of crop water needs from above function
-	infiltrationTS = netInfiltration)		# ts of cropland infiltration (minus gw rech) from above function
+	infiltrationTS = netInfiltration,		# ts of cropland infiltration (minus gw rech) from above function
+	dripIrrigation = TRUE)
 	{
 	irrigationNeeded = irrigatedPctArea * (cropWaterNeedsTS - infiltrationTS)
+	if(!dripIrrigation)	{irrigationNeeded = irrigationNeeded * 1.5}
 	return(irrigationNeeded)
 	}
 	
@@ -169,7 +176,7 @@ runRegionalGWmodel_f = function(
 	thisLatitudeInDegrees = 35,
 	variablesTableRow = variablesTableRow,
 	graceSinMod = graceSinMod,				# model capturing the seasonal signal of gw head
-	histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),
+#	histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),
 	multiClimateData = NA, 
 	startYear = 2000,
 	endYear = 2099)
@@ -189,7 +196,8 @@ runRegionalGWmodel_f = function(
 	irrigationApplied = variablesTableRow$irrigationApplied					# timeseries of irrigation (daily); defaults to 0
 	crn = variablesTableRow$crn							# curve number
 	Smax = variablesTableRow$Smax								# maximum rz soil moisture storage
-	Ia_scalar = variablesTableRow$Ia_scalar						# infiltration 
+	Ia_scalar = variablesTableRow$Ia_scalar						# infiltration
+	managedAquiferRecharge = variablesTableRow$Ia_scalar
 		# gwRecharge_f vars
 	rcScl_sm = variablesTableRow$rcScl_sm	# water retention curve scalar for soil moisture
 	rcExp_sm = variablesTableRow$rcExp_sm	# water retention curve exponent for soil moisture
@@ -205,15 +213,17 @@ runRegionalGWmodel_f = function(
 		# cropWaterNeeds_f vars
 	avgCropWaterNeeds = variablesTableRow$avgCropWaterNeeds		# for alfalfa #1010  pistachio in ther san J; c(900, 1200) # citrus
 	petGlobAvg = variablesTableRow$petGlobAvg
+	mulching = variablesTableRow$mulching
 		# irrigation_f vars
 	irrigatedPctArea = variablesTableRow$irrigatedPctArea		# pct area that is regularly irrigated with gw
+	dripIrrigation = variablesTableRow$dripIrrigation
 		# netGwFlow_f vars
 	regionalNetGwRtOfChange = variablesTableRow$regionalNetGwRtOfChange	# what is the long-term trend in gw resources, here likely from abutting GRACE / GRACE-FO tiles, given in mm / day; should be a small number
 	initialStorageDifference = variablesTableRow$initialStorageDifference	# what is the initial head on location relative to regional average (pos is higher regional so net inflow, neg is lower regional so net outflow)
 	maxStorageBalance = variablesTableRow$maxStorageBalance		# what is the maximum head imbalance in mm
 	rcScl_netGw = variablesTableRow$rcScl_netGw					# recession curve scalar
 	graceSinMod = graceSinMod		# model capturing the seasonal signal in gw head
-	histDates = climateInput$Date		
+	Date = c(climateInput$Date, data.table::last(climateInput$Date) + 1)
 
 		
 	totalInfiltration = totalInfiltration_f(
@@ -221,7 +231,9 @@ runRegionalGWmodel_f = function(
 		irrigationApplied = irrigationApplied,					# timeseries of irrigation (daily); defaults to 0
 		crn = crn,								# curve number
 		Smax = Smax,								# maximum rz soil moisture storage
-		Ia_scalar = Ia_scalar)						# infiltration 
+		Ia_scalar = Ia_scalar,						# infiltration 
+		irrigatedPctArea = irrigatedPctArea,
+		managedAquiferRecharge = managedAquiferRecharge)
 		
 		# 1b PET, infiltration, AET, and recharge
 	gwRechargeTable = gwRecharge_f(
@@ -249,14 +261,15 @@ runRegionalGWmodel_f = function(
 	cropWaterNeeds = cropWaterNeeds_f(
 		petTS = gwRechargeTable$PET,
 		avgCropWaterNeeds = avgCropWaterNeeds,		# for alfalfa #1010  pistachio in ther san J; c(900, 1200) # citrus
-		petGlobAvg = petGlobAvg)
+		petGlobAvg = petGlobAvg,
+		mulching = mulching)
 
 		# step 3: estimating irrigation needs for ag lands
 	irrigationNeeded =	irrigation_f(
 		irrigatedPctArea = irrigatedPctArea,		# pct area that is regularly irrigated with gw
 		cropWaterNeedsTS = cropWaterNeeds,	#ts of crop water needs from above function
-		infiltrationTS = c(totalInfiltration, mean(totalInfiltration)) - gwRechargeTable$gwRecharge)		# ts of cropland infiltration (minus gw rech) from above function
-
+		infiltrationTS = c(totalInfiltration, mean(totalInfiltration)) - gwRechargeTable$gwRecharge,		# ts of cropland infiltration (minus gw rech) from above function
+		dripIrrigation = dripIrrigation)
 
 		# step 4: estimating net groundwater flow across basins
 	netGwFlow = netGwFlow_f(
@@ -264,12 +277,11 @@ runRegionalGWmodel_f = function(
 		irrigationNeeded = irrigationNeeded,	# time series of area-averaged irrigation
 		regionalNetGwRtOfChange = regionalNetGwRtOfChange,	# what is the long-term trend in gw resources, here likely from abutting GRACE / GRACE-FO tiles, given in mm / day; should be a small number
 		graceSinMod = graceSinMod,				# model capturing the seasonal signal of gw head
-		histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),		
+		histDates = Date,		
 		initialStorageDifference = initialStorageDifference,	# what is the initial head on location relative to regional average (pos is higher regional so net inflow, neg is lower regional so net outflow)
 		maxStorageBalance = maxStorageBalance,		# what is the maximum head imbalance in mm
 		rcScl_netGw = rcScl_netGw)					# recession curve scalar
 
-	Date = c(climateInput$Date, data.table::last(climateInput$Date) + 1)
 	totalInfiltration = c(totalInfiltration, NA)
 	return(cbind(Date, totalInfiltration, gwRechargeTable, cropWaterNeeds, irrigationNeeded, netGwFlow))
 }
@@ -325,11 +337,9 @@ calibrateRegionalGWmodel_f = function(
 			thisLatitudeInDegrees = locationLat,
 			variablesTableRow = variablesTable[thisRow,],
 			graceSinMod = graceSinMod,				# model capturing the seasonal signal of gw head
-			histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),
 			multiClimateData = NA, 
-			startYear = 2000,
-			endYear = 2099)
-	
+			startYear = startYear,
+			endYear = endYear)
 	
 	
 		allDataOutput = merge(graceTS, regionalGwModel, all.y=TRUE)
@@ -381,8 +391,11 @@ projectRegionalGWmodel_f = function(
 	{
 
 	variablesTableOrder = c(rev(order(variablesTable$KGE))[1:20], rev(order(variablesTable$NSE))[1:5],
-		order(variablesTable$rmse)[1:2], order(variablesTable$mae)[1:2], order(variablesTable$rmse)[1:2], order(variablesTable$pbias)[1:5])#, order(variablesTable$pearson)[1:2])
+		order(variablesTable$rmse)[1:2], order(variablesTable$mae)[1:2], order(variablesTable$rmse)[1:2], order(abs(variablesTable$pbias))[1:5], rev(order(variablesTable$rPearson)[1:2]))
 	variablesTableSort = variablesTable[unique(variablesTableOrder), ]
+	mulching = variablesTableSort$mulching[1]
+	dripIrrigation = variablesTableSort$dripIrrigation[1]
+	managedAquiferRecharge = variablesTableSort$managedAquiferRecharge[1]
 
 	histClimateInput = data.table::as.data.table(readRDS(paste0(dataOut_location, 'ERA5_', basinName, '.RData')))
 	
@@ -396,7 +409,7 @@ projectRegionalGWmodel_f = function(
 		
 		for(thisClimateModel in 1:length(climateInputAllMods))	{
 			projClimateData = data.table::as.data.table(climateInputAllMods[[thisClimateModel]])
-			multiClimateData = merge(projClimateData, histClimateInput, all.y=TRUE)
+			multiClimateData = rbind(histClimateInput, subset(projClimateData, Date > max(histClimateInput$Date)))
 	
 
 			if(all(!is.na(multiClimateData)))	{	# not sure why but getting some ppt nas
@@ -411,19 +424,18 @@ projectRegionalGWmodel_f = function(
 							thisLatitudeInDegrees = locationLat,
 							variablesTableRow = variablesTableRow,
 							graceSinMod = graceSinMod,				# model capturing the seasonal signal of gw head
-							histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),
 							multiClimateData = multiClimateData, 
-							startYear = 2000,
-							endYear = 2099)
+							startYear = startYear,
+							endYear = endYear)
 
-					plot(regionalGwModel$Date, regionalGwModel$regionalStorage, type='l')
-					print((tail(regionalGwModel$regionalStorage, 1) - regionalGwModel$regionalStorage[1]) / 85)
+					plot(regionalGwModel$Date, regionalGwModel$subsidizedRegionalStorage, type='l')
+					print(c((tail(regionalGwModel$subsidizedRegionalStorage, 2)[1] - regionalGwModel$subsidizedRegionalStorage[1]) / 85, thisCalibration))
 					climateDataList[[thisIter]] = as.data.table(regionalGwModel)
 				}
 			}	else	{ print(multiClimateData)}
 		}
 		
-		saveRDS(climateDataList, paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, '.RData'))
+		saveRDS(climateDataList, paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, mulching, dripIrrigation, managedAquiferRecharge, '.RData'))
 	}
 }
 
