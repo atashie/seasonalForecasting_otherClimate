@@ -1,5 +1,6 @@
 ##################
 # Workflow
+library(data.table)
 
 #######################################################################################
 ## Part 1: functions supporting gw modeling
@@ -317,6 +318,7 @@ calibrateRegionalGWmodel_f = function(
 	calOut$rmse =  -99999
 	calOut$pbias =  -99999
 	calOut$rPearson =  -99999
+	calOut$rSquared =  -99999
 	
 
 	thisRow = 0
@@ -361,6 +363,7 @@ calibrateRegionalGWmodel_f = function(
 			calOut$rmse[goodRuns] = hydroGOF::rmse(allDataSubset$subsidizedRegionalStorage, allDataSubset$AnomalyInterp)
 			calOut$pbias[goodRuns] = hydroGOF::pbias(allDataSubset$subsidizedRegionalStorage, allDataSubset$AnomalyInterp)
 			calOut$rPearson[goodRuns] = hydroGOF::rPearson(allDataSubset$subsidizedRegionalStorage, allDataSubset$AnomalyInterp)
+			calOut$rSquared[goodRuns] = summary(lm(allDataSubset$AnomalyInterp ~ allDataSubset$subsidizedRegionalStorage))$adj.r.squared
 
 			data.table::fwrite(calOut, paste0(dataOut_location, basinName, 'calOut.csv'))
 			plot(allDataSubset$AnomalyInterp, type='l', lty=2, lwd = 3)
@@ -378,7 +381,6 @@ calibrateRegionalGWmodel_f = function(
 
 ############################################################################################################
 # part 4 projecting with cmip6 and multimodel runs
-
 projectRegionalGWmodel_f = function(
 	variablesTable = calOut,
 	graceTS = graceTS,
@@ -396,6 +398,7 @@ projectRegionalGWmodel_f = function(
 	mulching = variablesTableSort$mulching[1]
 	dripIrrigation = variablesTableSort$dripIrrigation[1]
 	managedAquiferRecharge = variablesTableSort$managedAquiferRecharge[1]
+	regionalFlatGW = variablesTableSort$regionalFlatGW[1] 
 
 	histClimateInput = data.table::as.data.table(readRDS(paste0(dataOut_location, 'ERA5_', basinName, '.RData')))
 	
@@ -416,7 +419,8 @@ projectRegionalGWmodel_f = function(
 				
 				for(thisCalibration in 1:numCalibrations)	{
 					variablesTableRow = variablesTableSort[thisCalibration, ]
-
+					if(variablesTableRow$regionalFlatGW)	{variablesTableRow$regionalNetGwRtOfChange = 0}
+					
 					thisIter = thisIter + 1
 					regionalGwModel = runRegionalGWmodel_f(
 							dataOut_location = dataOut_location,
@@ -435,8 +439,182 @@ projectRegionalGWmodel_f = function(
 			}	else	{ print(multiClimateData)}
 		}
 		
-		saveRDS(climateDataList, paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, mulching, dripIrrigation, managedAquiferRecharge, '.RData'))
+		saveRDS(climateDataList, paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, mulching, dripIrrigation, managedAquiferRecharge, regionalFlatGW, '.RData'))
 	}
 }
 
 
+
+
+
+
+
+#######################################################################
+### part 5: saving outputs as figures and summary tables
+
+
+dataSaver_f = function(
+	dataOut_location = dataOut_location,
+	calibrationTable = calibrationTable,
+	scenNames = scenNames,
+	calValPlots = FALSE)
+	{
+		
+	dataNamesDT = data.frame(
+		columnName = c('totalInfiltration',			 'soilMoistureVol',	 'gwRecharge', 						'PET', 			'AET', 			'cropWaterNeeds', 				'irrigationNeeded',			 'netGwFlow', 					'subsidizedRegionalStorage'),
+		sclr = c(		365.25, 						1,					365.25,							365.25,			365.25,			365.25,							365.25,							365.25,							1),
+		ylabName = c('Infiltration (mm / yr)', 'Soil Moisture (mm)',  'Annual Avg Gw Recharge (mm)', 'PET (mm / day)', 'AET (mm / day)', 'Crop Water Needs (mm / yr)', 'Irrigation Demand (mm / yr)', 'Regional Subsidy (mm / yr)','Change in Gw Storage (mm)'),
+		thisVarName = c('_infil', 		      '_smAvg', 				'_gwRech',						'_pet', 			'_aet' ,			'_cwn',							'_irrigDmd', 					'_netGwFl', 				'gwStorageProjections'))								
+
+	dataHighlights = data.frame(
+		Scenario = NA, Location = NA, Variable = NA, Q05 = NA, Q25 = NA, Q50 = NA, Q75 = NA, Q95 = NA, Mean = NA, SD = NA, Trend = NA, Significance = NA)
+
+	for(thisScen in 1:3)	{
+		
+		projectedData = readRDS(paste0(dataOut_location, 'projectedOutputs_', scenNames[thisScen], '_', basinName, 
+			calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1], calibrationTable$regionalFlatGW[1] ,'.RData'))
+		
+		for(thisVar in 1:nrow(dataNamesDT))	{
+			thisVarMtrx = matrix(nrow=nrow(projectedData[[1]]), ncol=length(projectedData))
+			allDates = projectedData[[1]]$Date
+
+
+			for(i in 1:length(projectedData))	{
+				thisDF = projectedData[[i]]
+				thisVarMtrx[ , i] = unlist(subset(thisDF, select = dataNamesDT$columnName[thisVar]) * dataNamesDT$sclr[thisVar])
+			}
+
+			thisYlab = dataNamesDT$ylabName[thisVar] # 'Regional Subsidy (mm / yr)' #'Irrigation Demand (mm / yr)' #'Crop Water Needs (mm / yr)' #'AET (mm / day)' #'PET (mm / day)' #'Annual Avg Gw Recharge (mm)' #'Soil Moisture (mm)' #'Annual Avg Infiltration (mm)'
+			thisVarName = dataNamesDT$thisVarName[thisVar] #'_irrigDmd' #'_cwn' #'_aet' #'_pet' #'_gwRech' #'_smAvg' #'_annAvgInfl'
+
+			for(thisLoc in 1:nrow(customerLocations))	{
+				locationName = unlist(customerLocations[thisLoc, "Location (name)"])
+				
+				vectoredMtrx = as.vector(thisVarMtrx)
+				repDates = rep(allDates, ncol(thisVarMtrx))
+				lnMod = speedglm::speedlm(vectoredMtrx ~ repDates)
+
+				dataHighlights = rbind(dataHighlights, data.frame(
+				Scenario = scenNames[thisScen],
+				Location = locationName,
+				Variable = thisYlab,
+				Q05 = quantile(vectoredMtrx, 0.05, na.rm=TRUE),
+				Q25 = quantile(vectoredMtrx, 0.25, na.rm=TRUE),
+				Q50 = quantile(vectoredMtrx, 0.50, na.rm=TRUE),
+				Q75 = quantile(vectoredMtrx, 0.75, na.rm=TRUE),
+				Q95 = quantile(vectoredMtrx, 0.95, na.rm=TRUE),
+				Mean = mean(vectoredMtrx, na.rm=TRUE),
+				SD = sd(vectoredMtrx, na.rm=TRUE),
+				Trend = lnMod$coefficients[2] * 365.25,
+				Significance = summary(lnMod)$f.pvalue)) 
+
+				png(paste0(dataOut_location, locationName, '_', scenNames[thisScen],thisVarName,
+					calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1],calibrationTable$regionalFlatGW [1],'.png'), width=1200, height=600)
+				par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+				windowsFonts(A = windowsFont("Roboto"))
+				
+				kmeansSmoothQ05 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.05, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+				kmeansSmoothQ95 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.95, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+				plot(allDates, apply(thisVarMtrx, 1, mean),
+					ylim=c(min(kmeansSmoothQ05), max(kmeansSmoothQ95)),
+					type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+					main='', ylab=thisYlab, xlab='',
+					col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+					family='A')
+					
+				polygon(x=c(allDates, rev(allDates)), 
+						y=c(kmeansSmoothQ05, rev(kmeansSmoothQ95)),
+						col=adjustcolor('#0098B2', offset = c(0.95,0.95,0.95,0)), border=NA)
+			#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+				kmeansSmoothQ10 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.10, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+				kmeansSmoothQ90 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.90, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+				polygon(x=c(allDates, rev(allDates)), 
+						y=c(kmeansSmoothQ10, rev(kmeansSmoothQ90)),
+						col=adjustcolor('#0098B2', offset = c(0.9,0.9,0.9,0)), border=NA)
+			#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+				kmeansSmoothQ25 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.25, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+				kmeansSmoothQ75 = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) quantile(x, probs = 0.75, na.rm=TRUE)), bandwidth = 365, kernel = 'normal')$y, 'extend')
+				polygon(x=c(allDates, rev(allDates)), 
+						y=c(kmeansSmoothQ25, rev(kmeansSmoothQ75)),
+						col=adjustcolor('#0098B2', offset = c(0.8,0.8,0.8,0)), border=NA)
+			#			col=adjustcolor('#0098B2', alpha=1), border=NA)
+
+				abline(h=0, lwd=3, lty=3, col='grey65')
+
+				kmeansSmooth = zoo::na.fill(ksmooth(allDates, apply(thisVarMtrx, 1, function(x) mean(x, na.rm=TRUE)) , bandwidth = 365, kernel = 'box')$y, 'extend')
+				lines(allDates, kmeansSmooth,
+					col='#0098B2', lwd=3)
+					
+				usr <- par("usr")   # save old user/default/system coordinates
+				par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+				text(x=0.02, y=0.05, scenNames[thisScen], col='grey25', cex=2.2, pos=4)
+				par(usr = usr) # restore original user coordinates
+
+				dev.off()
+			}
+		}
+	}
+	fwrite(dataHighlights, paste0(dataOut_location, locationName, '_', 'projectionsHighlights', 
+		calibrationTable$mulching[1], calibrationTable$dripIrrigation[1], calibrationTable$managedAquiferRecharge[1], calibrationTable$regionalFlatGW[1],'.csv'))
+
+	if(calValPlots)	{
+			# cal val plots
+		png(paste0(dataOut_location, locationName, '_', 'calVal_gwStorageProjections.png'), width=1200, height=600)
+		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+		windowsFonts(A = windowsFont("Roboto"))
+
+		whichCalDates = which(projectedData[[1]]$Date < max(graceTS$Date))
+		calDates = projectedData[[1]]$Date[whichCalDates]
+		calMtrx = thisVarMtrx[whichCalDates, ]
+		thisYlab = 'Groundwater Storage (mm)'
+
+		kmeansSmoothQ05 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.05, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+		kmeansSmoothQ95 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.95, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+		plot(calDates, apply(calMtrx, 1, mean),
+			ylim=c(min(kmeansSmoothQ05), max(kmeansSmoothQ95)),
+			type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+			main='', ylab=thisYlab, xlab='',
+			col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+			family='A')
+					
+		polygon(x=c(calDates, rev(calDates)), 
+				y=c(kmeansSmoothQ05, rev(kmeansSmoothQ95)),
+				#col=adjustcolor('#0098B2', offset = c(0.95,0.95,0.95,0)), border=NA)
+				col=adjustcolor('#0098B2', alpha=.1), border=NA)
+
+		kmeansSmoothQ10 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.10, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+		kmeansSmoothQ90 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.90, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+		polygon(x=c(calDates, rev(calDates)), 
+				y=c(kmeansSmoothQ10, rev(kmeansSmoothQ90)),
+		#		col=adjustcolor('#0098B2', offset = c(0.9,0.9,0.9,0)), border=NA)
+				col=adjustcolor('#0098B2', alpha=.1), border=NA)
+
+		kmeansSmoothQ25 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.25, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+		kmeansSmoothQ75 = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) quantile(x, probs = 0.75, na.rm=TRUE)), bandwidth = 1, kernel = 'box')$y, 'extend')
+		polygon(x=c(calDates, rev(calDates)), 
+				y=c(kmeansSmoothQ25, rev(kmeansSmoothQ75)),
+		#		col=adjustcolor('#0098B2', offset = c(0.8,0.8,0.8,0)), border=NA)
+				col=adjustcolor('#0098B2', alpha=.1), border=NA)
+
+		abline(h=0, lwd=3, lty=3, col='grey65')
+
+		kmeansSmooth = zoo::na.fill(ksmooth(calDates, apply(calMtrx, 1, function(x) mean(x, na.rm=TRUE)) , bandwidth = 1, kernel = 'box')$y, 'extend')
+		lines(calDates, kmeansSmooth,
+			col='#0098B2', lwd=2)
+					
+		points(graceTS$Date, graceTS$Anomaly, 
+			col='grey25', lwd=2, pch=1)
+		lines(graceTS$Date, graceTS$Anomaly, 
+			col='grey25', lwd=1, lty=1)
+
+		usr <- par("usr")   # save old user/default/system coordinates
+		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+		text(x=0.02, y=0.15, 'Model Ensemble', col='#0098B2', cex=2.2, pos=4)
+		text(x=0.02, y=0.08, 'Benchmark Data', col='grey25', cex=2.2, pos=4)
+		par(usr = usr) # restore original user coordinates
+
+		dev.off()
+	}
+}

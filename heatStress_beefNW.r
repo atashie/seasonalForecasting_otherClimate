@@ -2,6 +2,18 @@
 ### loading needed libraries
 library(ncdf4)
 library(data.table)
+library(lubridate)
+
+
+# reading in customer data
+userName = 'Rabo'	
+customerFolder = 'J:\\Cai_data\\Rabo\\Locations\\'
+clientName = 'BeefNW'
+thisDate = Sys.Date()
+
+customerTable = fread(paste0(customerFolder, clientName, '\\', 'Customer Onboarding Information_BNW_parsedForTitan.csv'),#'Customer Onboarding Information_BNW.csv'), 
+	skip = 0) #'Customer_Hazards_and_Locations-Rabobank_grid - Sheet1.csv'
+
 
 ##########################################################
 # loading data
@@ -13,7 +25,7 @@ nc_allDat = nc_open(paste0(dataPath, cmipDataName))
 nc_lat = ncvar_get(nc_allDat, 'lat')
 nc_lon = ncvar_get(nc_allDat, 'lon')
 nc_date = ncvar_get(nc_allDat, 'time') + as.Date(startDateCmip)
-nc_year = lubridate::year(nc_date)
+nc_year = unique(lubridate::year(nc_date))
 nc_location = ncvar_get(nc_allDat, 'location')
 nc_model = ncvar_get(nc_allDat, 'model')
 nc_scen = ncvar_get(nc_allDat, 'scenario')
@@ -26,15 +38,17 @@ nc_ws = ncvar_get(nc_allDat, 'ws')
 nc_wsmax = ncvar_get(nc_allDat, 'ws_max')
 
 
-hliThresholds = seq(86,96,2)
+hliThresholds = c(81, 83, 86, 89, 91, 94)# 
+hliThresholdsDescription = c('sickOrNotAcclimitizedOrDeepManure', 'feedDays130', 'black', 'whiteOrLightShadeOrFeedDays80', 'strongShade', 'totalShadeAndCoolWater')
 
-countArray = array(NA, dim = c(length(unique(nc_year)), length(hliThresholds), length(nc_location), length(nc_model)))
+countArray = array(NA, dim = c(length(unique(nc_year)), length(hliThresholds), length(nc_model), length(nc_scen), length(nc_location)))
+hliArray = array(NA, dim = c(length(c("HLI", "Tmax","RH", "SolRad", "Tbg","Twb","Windspeed")),length(nc_date), length(nc_model), length(nc_scen), length(nc_location)))
 
 for(thisLoc in 1:length(nc_location))	{
 	for(thisScen in 1:length(nc_scen))	{
-		for(thisModel in 1:length(thisModel))	{
-			T2m = (nc_tmin[ , thisModel, thisScen, thisLoc] + nc_tmax[ , thisModel, thisScen, thisLoc]) / 2
-#			T2m = nc_tmax[ , thisModel, thisScen, thisLoc]
+		for(thisModel in 1:length(nc_model))	{
+#			T2m = (nc_tmin[ , thisModel, thisScen, thisLoc] + nc_tmax[ , thisModel, thisScen, thisLoc]) / 2
+			T2m = nc_tmax[ , thisModel, thisScen, thisLoc]
 			RH_pct = nc_rh[ , thisModel, thisScen, thisLoc]
 			RH_dec = RH_pct / 100
 			windspeed = nc_ws[ , thisModel, thisScen, thisLoc] * 0.2777777777777778 # km / h to m / s
@@ -69,7 +83,27 @@ for(thisLoc in 1:length(nc_location))	{
 			HLIlowDays = which(Tbg < HLI_threshold)
 			HLI_all = HLI_high
 			HLI_all[HLIlowDays] = HLI_low[HLIlowDays]
-		
+	
+			hliArray[1, , thisModel, thisScen, thisLoc] = HLI_all
+			hliArray[2, , thisModel, thisScen, thisLoc] = T2m
+			hliArray[3, , thisModel, thisScen, thisLoc] = RH_pct
+			hliArray[4, , thisModel, thisScen, thisLoc] = solRad
+			hliArray[5, , thisModel, thisScen, thisLoc] = Tbg
+			hliArray[6, , thisModel, thisScen, thisLoc] = Twb
+			hliArray[7, , thisModel, thisScen, thisLoc] = windspeed
+
+			for(thisThresh in 1:length(hliThresholds))	{
+				theseCounts = ifelse(all(is.na(HLI_all[which(year(nc_date) == nc_year[1])] > hliThresholds[thisThresh])), NA,
+					length(which(HLI_all[which(nc_year == nc_year[1])] > hliThresholds[thisThresh])))
+				for(thisYear in 2:length(nc_year))	{
+					theseHLI = HLI_all[which(year(nc_date) == nc_year[thisYear])]
+					theseCounts = c(theseCounts, 
+						ifelse(all(is.na(HLI_all)), NA, length(which(theseHLI > hliThresholds[thisThresh]))))
+				}
+					
+				countArray[ , thisThresh, thisModel, thisScen, thisLoc] = theseCounts
+			}
+
 			#A threshold HLI above which cattle of different genotypes gain body heat was developed for 7 genotypes.
 			#The threshold for unshaded black B. taurus steers was 86, and for 
 			#unshaded B. indicus (100%) the threshold was 96.
@@ -78,6 +112,357 @@ for(thisLoc in 1:length(nc_location))	{
 			#Upward and downward adjustments are possible
 			#	upward adjustments occur when cattle have access to shade (+3 to +7) and 
 			#	downward adjustments occur when cattle are showing clinical signs of disease (-5). 
+		}
+	}
+}
+
+
+
+
+	# heat index
+allYears = year(nc_date)
+allDecades = trunc(nc_year / 10) * 10
+historicYears = which(nc_year < 2023)
+historicDates = which(allYears < 2023)
+
+for(thisLoc in 1:nrow(customerTable))	{
+	for(thisScen in 1:length(nc_scen))	{
+		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedHeatIndex.png'), width=1300, height=700)
+		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+		windowsFonts(A = windowsFont("Roboto"))
+
+	#countArray [nc_year, hliThresholds, nc_model, thisScen, nc_location]
+	#hliArray   [variable, nc_date, nc_model, thisScen, nc_location]
+		
+		
+		yMin = -40
+		yMax = 120 #max(hliArray, na.rm=TRUE) * 1.025
+		
+		nDaysMin = 0
+		nDaysMax = max(apply(countArray[ ,1, , thisScen, thisLoc], 1, mean, na.rm=TRUE)) * 2.025
+		
+		countArrayScaled = (countArray * (yMax - yMin) / nDaysMax) + yMin
+		
+		plot(nc_date, apply(hliArray[1, , , thisScen, thisLoc], 1, mean, na.rm=TRUE),
+			ylim = c(yMin,yMax),yaxt = 'n',
+			type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+			main='', ylab='Daily Heat Load Index', xlab='',
+			col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+			family='A')
+		newYlab = seq(yMin,yMax,by=20)
+		axis(2, at=newYlab, col='#666D74', lwd=2, col.lab='#666D74', col.axis='#666D74')
+			
+		abline(h=mean(hliArray[1, historicDates, , thisScen, thisLoc], na.rm=TRUE), lwd=2, lty =2, col='#1A232F')
+		abline(h=seq(yMin, yMax, 20), col='grey90', lwd=1.1)
+
+	#	lines(nc_date[historicDates], apply(hliArray[1, historicDates, , thisScen, thisLoc], 1, mean, na.rm=TRUE), lwd=1, col=adjustcolor('#666D74', alpha=0.9))
+		for(thisModel in 1:length(nc_model))	{
+			lines(nc_date, hliArray[1, , thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+			#lines(nc_date[-historicDates], hliArray[1, -historicDates, thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+		}
+		kmeansSmooth = ksmooth(nc_date,  apply(hliArray[1, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), bandwidth = 365, kernel = 'box')
+		smthDaysRmv = c(1:365, (length(nc_date) - 365):length(nc_date))
+		lines(nc_date[-smthDaysRmv], kmeansSmooth$y[-smthDaysRmv], col='#0098B2', lwd=5)
+
+		loessSmooth = loess(apply(countArrayScaled[ , 1, , thisScen, thisLoc], 1, mean, na.rm=TRUE) ~ seq(1,length(nc_year),1))
+		lines(ymd(nc_year, truncated = 2L),   predict(loessSmooth),
+			col=adjustcolor('#EE6222', alpha=0.5), lwd=3)
+		loessSmooth = loess(apply(countArrayScaled[ , 2, , thisScen, thisLoc], 1, mean, na.rm=TRUE) ~ seq(1,length(nc_year),1))
+		lines(ymd(nc_year, truncated = 2L),   predict(loessSmooth),
+			col=adjustcolor('#EE6222', alpha=0.6), lwd=3)
+		loessSmooth = loess(apply(countArrayScaled[ , 3, , thisScen, thisLoc], 1, mean, na.rm=TRUE) ~ seq(1,length(nc_year),1))
+		lines(ymd(nc_year, truncated = 2L),   predict(loessSmooth),
+			col=adjustcolor('#EE6222', alpha=0.7), lwd=3)
+		loessSmooth = loess(apply(countArrayScaled[ , 4, , thisScen, thisLoc], 1, mean, na.rm=TRUE) ~ seq(1,length(nc_year),1))
+		lines(ymd(nc_year, truncated = 2L),   predict(loessSmooth),
+			col=adjustcolor('#EE6222', alpha=0.8), lwd=3)
+		loessSmooth = loess(apply(countArrayScaled[ , 5, , thisScen, thisLoc], 1, mean, na.rm=TRUE) ~ seq(1,length(nc_year),1))
+		lines(ymd(nc_year, truncated = 2L),   predict(loessSmooth),
+			col=adjustcolor('#EE6222', alpha=1.0), lwd=3)
+		loessSmooth = loess(apply(countArrayScaled[ , 6, , thisScen, thisLoc], 1, mean, na.rm=TRUE) ~ seq(1,length(nc_year),1))
+		lines(ymd(nc_year, truncated = 2L),   predict(loessSmooth),
+			col=adjustcolor('#EE6222', alpha=1.0), lwd=3)
+
+		axis(4, at=newYlab, col='#EE6222', lwd=2, col.lab='#EE6222', col.axis='#EE6222',
+			labels = round(seq(nDaysMin,nDaysMax,length.out=length(newYlab)),0))
+		mtext('Number of Days', line=3, side=4, col='#EE6222', cex=1.5*1.8)
+		dev.off()
+		
+		summaryOut = data.frame(Decade = unique(allDecades))
+		for(thisThresh in 1:length(hliThresholds))	{	
+			theseVals = apply(countArray[ , thisThresh, , thisScen, thisLoc], 1, mean, na.rm=TRUE)
+			decAvgVals = mean(theseVals[which(allDecades == unique(allDecades)[1])])
+			for(thisDec in 2:length(unique(allDecades)))	{
+				decAvgVals = c(decAvgVals, mean(theseVals[which(allDecades == unique(allDecades)[thisDec])]))
+			}
+			summaryOut[, paste0('HLI_', hliThresholds[thisThresh])] = round(decAvgVals, 1)
+		}
+		fwrite(summaryOut, paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedHeatIndex.csv'))
+	}
+}
+
+	#rh
+for(thisLoc in 1:nrow(customerTable))	{
+	for(thisScen in 1:length(nc_scen))	{
+		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedHumidity.png'), width=1500, height=500)
+		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+		windowsFonts(A = windowsFont("Roboto"))
+			
+		yMin = 0
+		yMax = 100 * 1.025
+		
+
+		plot(nc_date, apply(hliArray[3, , , thisScen, thisLoc], 1, mean, na.rm=TRUE),
+			ylim = c(yMin,yMax) ,
+			type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+			main='', ylab='Humidity (%)', xlab='',
+			col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+			family='A')
+		abline(h=mean(apply(hliArray[3, nc_date < as.Date('2023/01/01'), , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE), lwd=2, lty =2, col='#1A232F')
+
+		for(thisModel in 1:length(nc_model))	{
+			lines(nc_date, hliArray[3, , thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+			#lines(nc_date[-historicDates], hliArray[1, -historicDates, thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+		}
+		smthDaysRmv = c(1:365, (length(nc_date) - 365):length(nc_date))
+		kmeansSmooth = ksmooth(nc_date,  apply(hliArray[3, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), bandwidth = 365, kernel = 'box')
+		lines(nc_date[-smthDaysRmv], kmeansSmooth$y[-smthDaysRmv], col='#0098B2', lwd=5)
+
+		usr <- par("usr")   # save old user/default/system coordinates
+		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+		text(x=0.02, y=0.05, 
+			paste0(round(lm(hliArray[3, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
+			col='grey25', cex=2.2, pos=4)
+		par(usr = usr) # restore original user coordinates
+		dev.off()
+	}
+}
+
+
+	# tmax
+for(thisLoc in 1:nrow(customerTable))	{
+	for(thisScen in 1:length(nc_scen))	{
+		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedDailyMaxTemp.png'), width=1500, height=500)
+		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+		windowsFonts(A = windowsFont("Roboto"))
+		
+		impArray = hliArray * (9/5) + 32
+		
+		yMin = min(impArray[2, , , thisScen, thisLoc], na.rm=TRUE) #min(apply(impArray[2, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) - 2
+		yMax = max(impArray[2, , , thisScen, thisLoc], na.rm=TRUE) #max(apply(impArray[2, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) + 2
+		
+
+		plot(nc_date, apply(impArray[2, , , thisScen, thisLoc], 1, mean, na.rm=TRUE),
+			ylim = c(yMin,yMax) ,
+			type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+			main='', ylab='Daily Max Temperature (F)', xlab='',
+			col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+			family='A')
+		abline(h=mean(apply(impArray[2, nc_date < as.Date('2023/01/01'), , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE), lwd=2, lty =2, col='#1A232F')
+
+		for(thisModel in 1:length(nc_model))	{
+			lines(nc_date, impArray[2, , thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+			#lines(nc_date[-historicDates], impArray[1, -historicDates, thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+		}
+		smthDaysRmv = c(1:365, (length(nc_date) - 365):length(nc_date))
+		kmeansSmooth = ksmooth(nc_date,  apply(impArray[2, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), bandwidth = 365, kernel = 'box')
+		lines(nc_date[-smthDaysRmv], kmeansSmooth$y[-smthDaysRmv], col='#0098B2', lwd=5)
+
+		usr <- par("usr")   # save old user/default/system coordinates
+		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+		text(x=0.02, y=0.05, 
+			paste0(round(lm(impArray[2, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
+			col='grey25', cex=2.2, pos=4)
+		par(usr = usr) # restore original user coordinates
+		dev.off()
+	}
+}
+
+
+
+	# solrad
+for(thisLoc in 1:nrow(customerTable))	{
+	for(thisScen in 1:length(nc_scen))	{
+		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedDailySolarRadiation.png'), width=1500, height=500)
+		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+		windowsFonts(A = windowsFont("Roboto"))
+		
+#		hliArray = hliArray * (9/5) + 32
+		
+		yMin = min(hliArray[4, , , thisScen, thisLoc], na.rm=TRUE) #min(apply(hliArray[4, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) - 2
+		yMax = max(hliArray[4, , , thisScen, thisLoc], na.rm=TRUE) #max(apply(hliArray[4, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) + 2
+		
+
+		plot(nc_date, apply(hliArray[4, , , thisScen, thisLoc], 1, mean, na.rm=TRUE),
+			ylim = c(yMin,yMax) ,
+			type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+			main='', ylab='Daily Average Solar Rad (W / m^2)', xlab='',
+			col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+			family='A')
+		abline(h=mean(apply(hliArray[4, nc_date < as.Date('2023/01/01'), , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE), lwd=2, lty =2, col='#1A232F')
+
+		for(thisModel in 1:length(nc_model))	{
+			lines(nc_date, hliArray[4, , thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+			#lines(nc_date[-historicDates], hliArray[1, -historicDates, thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+		}
+		smthDaysRmv = c(1:365, (length(nc_date) - 365):length(nc_date))
+		kmeansSmooth = ksmooth(nc_date,  apply(hliArray[4, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), bandwidth = 365, kernel = 'box')
+		lines(nc_date[-smthDaysRmv], kmeansSmooth$y[-smthDaysRmv], col='#0098B2', lwd=5)
+
+		usr <- par("usr")   # save old user/default/system coordinates
+		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+		text(x=0.02, y=0.05, 
+			paste0(round(lm(hliArray[4, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
+			col='grey25', cex=2.2, pos=4)
+		par(usr = usr) # restore original user coordinates
+		dev.off()
+	}
+}
+
+	# Tbg
+for(thisLoc in 1:nrow(customerTable))	{
+	for(thisScen in 1:length(nc_scen))	{
+		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedDailyMaxBlackGlobeTemp.png'), width=1500, height=500)
+		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+		windowsFonts(A = windowsFont("Roboto"))
+		
+		impArray = hliArray * (9/5) + 32
+		
+		yMin = min(impArray[5, , , thisScen, thisLoc], na.rm=TRUE) #min(apply(impArray[5, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) - 2
+		yMax = max(impArray[5, , , thisScen, thisLoc], na.rm=TRUE) #max(apply(impArray[5, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) + 2
+		
+
+		plot(nc_date, apply(impArray[5, , , thisScen, thisLoc], 1, mean, na.rm=TRUE),
+			ylim = c(yMin,yMax) ,
+			type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+			main='', ylab='Daily Max Black Globe Temp (F)', xlab='',
+			col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+			family='A')
+		abline(h=mean(apply(impArray[5, nc_date < as.Date('2023/01/01'), , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE), lwd=2, lty =2, col='#1A232F')
+
+		for(thisModel in 1:length(nc_model))	{
+			lines(nc_date, impArray[5, , thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+			#lines(nc_date[-historicDates], impArray[1, -historicDates, thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+		}
+		smthDaysRmv = c(1:365, (length(nc_date) - 365):length(nc_date))
+		kmeansSmooth = ksmooth(nc_date,  apply(impArray[5, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), bandwidth = 365, kernel = 'box')
+		lines(nc_date[-smthDaysRmv], kmeansSmooth$y[-smthDaysRmv], col='#0098B2', lwd=5)
+
+		usr <- par("usr")   # save old user/default/system coordinates
+		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+		text(x=0.02, y=0.05, 
+			paste0(round(lm(impArray[5, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
+			col='grey25', cex=2.2, pos=4)
+		par(usr = usr) # restore original user coordinates
+		dev.off()
+	}
+}
+
+	# Twb
+for(thisLoc in 1:nrow(customerTable))	{
+	for(thisScen in 1:length(nc_scen))	{
+		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedDailyMaxWetBulbTemp.png'), width=1400, height=600)
+		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+		windowsFonts(A = windowsFont("Roboto"))
+		
+		impArray = hliArray * (9/5) + 32
+		
+		yMin = min(impArray[6, , , thisScen, thisLoc], na.rm=TRUE) #min(apply(impArray[6, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) - 2
+		yMax = max(impArray[6, , , thisScen, thisLoc], na.rm=TRUE) #max(apply(impArray[6, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) + 2
+		
+
+		plot(nc_date, apply(impArray[6, , , thisScen, thisLoc], 1, mean, na.rm=TRUE),
+			ylim = c(yMin,yMax) ,
+			type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+			main='', ylab='Daily Max Wet Bulb Temperature (F)', xlab='',
+			col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+			family='A')
+		abline(h=mean(apply(impArray[6, nc_date < as.Date('2023/01/01'), , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE), lwd=2, lty =2, col='#1A232F')
+
+		for(thisModel in 1:length(nc_model))	{
+			lines(nc_date, impArray[6, , thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+			#lines(nc_date[-historicDates], impArray[1, -historicDates, thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+		}
+		smthDaysRmv = c(1:365, (length(nc_date) - 365):length(nc_date))
+		kmeansSmooth = ksmooth(nc_date,  apply(impArray[6, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), bandwidth = 365, kernel = 'box')
+		lines(nc_date[-smthDaysRmv], kmeansSmooth$y[-smthDaysRmv], col='#0098B2', lwd=5)
+
+		usr <- par("usr")   # save old user/default/system coordinates
+		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+		text(x=0.02, y=0.05, 
+			paste0(round(lm(impArray[6, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
+			col='grey25', cex=2.2, pos=4)
+		par(usr = usr) # restore original user coordinates
+		dev.off()
+	}
+}
+
+	# windspeed
+for(thisLoc in 1:nrow(customerTable))	{
+	for(thisScen in 1:length(nc_scen))	{
+		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedDailyAvgWindspeed.png'), width=1400, height=600)
+		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
+		windowsFonts(A = windowsFont("Roboto"))
+		
+#		impArray = hliArray * (9/5) + 32
+		
+		yMin = min(hliArray[7, , , thisScen, thisLoc], na.rm=TRUE) #min(apply(hliArray[6, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) - 2
+		yMax = max(hliArray[7, , , thisScen, thisLoc], na.rm=TRUE) #max(apply(hliArray[6, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE) + 2
+		
+
+		plot(nc_date, apply(hliArray[7, , , thisScen, thisLoc], 1, mean, na.rm=TRUE),
+			ylim = c(yMin,yMax) ,
+			type='l', lwd=1, col='white', #xaxt = 'n', #log='y',
+			main='', ylab='Daily Avg Windspeed (m / s)', xlab='',
+			col.lab='#1A232F', col.axis='#666D74', col.main='#1A232F',
+			family='A')
+		abline(h=mean(apply(hliArray[7, nc_date < as.Date('2023/01/01'), , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE), lwd=2, lty =2, col='#1A232F')
+
+		for(thisModel in 1:length(nc_model))	{
+			lines(nc_date, hliArray[7, , hliArray, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+			#lines(nc_date[-historicDates], hliArray[1, -historicDates, thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+		}
+		smthDaysRmv = c(1:365, (length(nc_date) - 365):length(nc_date))
+		kmeansSmooth = ksmooth(nc_date,  apply(hliArray[7, , , thisScen, thisLoc], 1, mean, na.rm=TRUE), bandwidth = 365, kernel = 'box')
+		lines(nc_date[-smthDaysRmv], kmeansSmooth$y[-smthDaysRmv], col='#0098B2', lwd=5)
+
+		usr <- par("usr")   # save old user/default/system coordinates
+		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
+		text(x=0.02, y=0.05, 
+			paste0(round(lm(hliArray[7, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
+			col='grey25', cex=2.2, pos=4)
+		par(usr = usr) # restore original user coordinates
+		dev.off()
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

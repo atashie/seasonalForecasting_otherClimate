@@ -18,8 +18,8 @@ cfsDataName = 				'SimplotMidwest-testing-cfs.nc'				#	SimplotMtnWst			SimplotNo
 seas5DataName = 			'SimplotMidwest-testing-seas5.nc'			#	SimplotMtnWst			SimplotNorthGrtPlns				SimplotAllGrtPlns,		SimplotMidwest
 userName = 'Simplot Midwest' 										#Simplot Mountain West,  	Simplot Northern Great Plains,	Simplot Great Plains,	Simplot Midwest
 startDateEra5 = '2022-08-01'
-startDateCfs = '2023-04-30'
-startDateSeas5 = '2023-04-01'
+startDateCfs = '2023-05-21'
+startDateSeas5 = '2023-05-01'
 #startDateClimatology = '2002-07-01'	# All Great Plains; MountainWest
 startDateClimatology = '2000-08-01'	# Midwest; NorthernGreatPlains
 
