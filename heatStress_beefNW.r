@@ -230,9 +230,9 @@ for(thisLoc in 1:nrow(customerTable))	{
 
 		usr <- par("usr")   # save old user/default/system coordinates
 		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
-		text(x=0.02, y=0.05, 
-			paste0(round(lm(hliArray[3, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
-			col='grey25', cex=2.2, pos=4)
+		text(x=0.02, y=0.95, 
+			paste0(round(lm(hliArray[3, , thisModel, thisScen, thisLoc] ~ c(1:length(nc_date)))$coef[2] * 3653, 1), ' per decade'),
+			col='#0098B2', cex=1.5*1.8, pos=4)
 		par(usr = usr) # restore original user coordinates
 		dev.off()
 	}
@@ -270,9 +270,9 @@ for(thisLoc in 1:nrow(customerTable))	{
 
 		usr <- par("usr")   # save old user/default/system coordinates
 		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
-		text(x=0.02, y=0.05, 
-			paste0(round(lm(impArray[2, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
-			col='grey25', cex=2.2, pos=4)
+		text(x=0.02, y=0.95, 
+			paste0(round(lm(impArray[2, , thisModel, thisScen, thisLoc] ~ c(1:length(nc_date)))$coef[2] * 3653, 1), ' per decade'),
+			col='#0098B2', cex=1.5*1.8, pos=4)
 		par(usr = usr) # restore original user coordinates
 		dev.off()
 	}
@@ -311,9 +311,9 @@ for(thisLoc in 1:nrow(customerTable))	{
 
 		usr <- par("usr")   # save old user/default/system coordinates
 		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
-		text(x=0.02, y=0.05, 
-			paste0(round(lm(hliArray[4, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
-			col='grey25', cex=2.2, pos=4)
+		text(x=0.02, y=0.95, 
+			paste0(round(lm(hliArray[4, , thisModel, thisScen, thisLoc] ~ c(1:length(nc_date)))$coef[2] * 3653, 1), ' per decade'),
+			col='#0098B2', cex=1.5*1.8, pos=4)
 		par(usr = usr) # restore original user coordinates
 		dev.off()
 	}
@@ -351,8 +351,8 @@ for(thisLoc in 1:nrow(customerTable))	{
 		usr <- par("usr")   # save old user/default/system coordinates
 		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
 		text(x=0.02, y=0.05, 
-			paste0(round(lm(impArray[5, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
-			col='grey25', cex=2.2, pos=4)
+			paste0(round(lm(impArray[5, , thisModel, thisScen, thisLoc] ~ c(1:length(nc_date)))$coef[2] * 3653, 1), ' per decade'),
+			col='#0098B2', cex=1.5*1.8, pos=4)
 		par(usr = usr) # restore original user coordinates
 		dev.off()
 	}
@@ -361,7 +361,7 @@ for(thisLoc in 1:nrow(customerTable))	{
 	# Twb
 for(thisLoc in 1:nrow(customerTable))	{
 	for(thisScen in 1:length(nc_scen))	{
-		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedDailyMaxWetBulbTemp.png'), width=1400, height=600)
+		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedDailyMaxWetBulbTemp.png'), width=1500, height=500)
 		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
 		windowsFonts(A = windowsFont("Roboto"))
 		
@@ -390,8 +390,8 @@ for(thisLoc in 1:nrow(customerTable))	{
 		usr <- par("usr")   # save old user/default/system coordinates
 		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
 		text(x=0.02, y=0.05, 
-			paste0(round(lm(impArray[6, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
-			col='grey25', cex=2.2, pos=4)
+			paste0(round(lm(impArray[6, , thisModel, thisScen, thisLoc] ~ c(1:length(nc_date)))$coef[2] * 3653, 1), ' per decade'),
+			col='#0098B2', cex=1.5*1.8, pos=4)
 		par(usr = usr) # restore original user coordinates
 		dev.off()
 	}
@@ -400,7 +400,7 @@ for(thisLoc in 1:nrow(customerTable))	{
 	# windspeed
 for(thisLoc in 1:nrow(customerTable))	{
 	for(thisScen in 1:length(nc_scen))	{
-		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedDailyAvgWindspeed.png'), width=1400, height=600)
+		png(paste0(customerFolder, clientName, '\\',  customerTable$Location[thisLoc], '_', nc_scen[thisScen], '_projectedDailyAvgWindspeed.png'), width=1500, height=500)
 		par(mar=3*c(1.75,1.75,0.75,1.75), mgp=2*c(1.5,.6,0), mfrow=c(1,1), font.lab=1.5, bty='l', cex.lab=1.5*1.8, cex.axis=1.5*1.4, cex.main=1.5*1.8, col='#1A232F')
 		windowsFonts(A = windowsFont("Roboto"))
 		
@@ -419,7 +419,7 @@ for(thisLoc in 1:nrow(customerTable))	{
 		abline(h=mean(apply(hliArray[7, nc_date < as.Date('2023/01/01'), , thisScen, thisLoc], 1, mean, na.rm=TRUE), na.rm=TRUE), lwd=2, lty =2, col='#1A232F')
 
 		for(thisModel in 1:length(nc_model))	{
-			lines(nc_date, hliArray[7, , hliArray, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
+			lines(nc_date, hliArray[7, , thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
 			#lines(nc_date[-historicDates], hliArray[1, -historicDates, thisModel, thisScen, thisLoc], lwd=2, col=adjustcolor('#666D74', alpha=0.1))
 		}
 		smthDaysRmv = c(1:365, (length(nc_date) - 365):length(nc_date))
@@ -429,8 +429,8 @@ for(thisLoc in 1:nrow(customerTable))	{
 		usr <- par("usr")   # save old user/default/system coordinates
 		par(usr = c(0, 1, 0, 1)) # new relative user coordinates
 		text(x=0.02, y=0.05, 
-			paste0(round(lm(hliArray[7, , thisModel, thisScen, thisLoc] ~ hliArray[ , 1, thisModel, thisScen, thisLoc])$coef[2] * 3653, 1), ' per decade'),
-			col='grey25', cex=2.2, pos=4)
+			paste0(round(lm(hliArray[7, , thisModel, thisScen, thisLoc] ~ c(1:length(nc_date)))$coef[2] * 3653, 2), ' per decade'),
+			col='#0098B2', cex=1.5*1.8, pos=4)
 		par(usr = usr) # restore original user coordinates
 		dev.off()
 	}
