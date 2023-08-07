@@ -1,0 +1,12 @@
+name: riverTrans_shinyApp2
+title: riverTrans_shinyApp2
+username: atashie
+account: atashie
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9545957
+bundleId: 7532834
+url: https://atashie.shinyapps.io/riverTrans_shinyApp2/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
