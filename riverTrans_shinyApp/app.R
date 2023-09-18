@@ -50,7 +50,7 @@ ui <- fluidPage(
 # verbatimTextOutput("info"))
 
 server <- function(input, output) {
-  plotter_sf = sf::st_read(paste0('./waterways_', "2023-08-01", '.gpkg'))
+  plotter_sf = sf::st_read(paste0('./waterways_', "2023-09-18", '.gpkg'))
   plotter_dt = st_drop_geometry(plotter_sf)
   waterWaysDb_sf = sf::st_read('./waterWaysAndDistancesCONUS_QandH_sf.gpkg')
   waterWaysDb_dt = st_drop_geometry(waterWaysDb_sf)

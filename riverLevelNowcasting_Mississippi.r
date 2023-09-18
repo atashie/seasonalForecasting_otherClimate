@@ -221,6 +221,9 @@ availableGages_H_sf = sf::st_as_sf(availableGages_H, coords = c('dec_long_va', '
 
 which(waterWaysDb_sf$ANODE == waterWaysDb_sf$BNODE[1])
 
+ocean50 = st_as_sf(st_read('J:\\Cai_data\\ne_10m_ocean\\ne_10m_ocean.shp'))
+countries10 = st_as_sf(st_read('J:\\Cai_data\\ne_10m_admin_0_countries\\ne_10m_admin_0_countries.shp'))
+provinces10 = st_as_sf(st_read('J:\\Cai_data\\ne_10m_admin_1_states_provinces\\ne_10m_admin_1_states_provinces.shp'))
 
 ggplot(data = waterWaysDb_sf) +
   geom_sf(data=subset(provinces10, geonunit=='United States of America'),
