@@ -11,6 +11,7 @@ library(ggplot2)
 library(sf)
 library(data.table)
 library(maps)
+library(shiny)
 
 
 ui <- fluidPage(
@@ -23,8 +24,8 @@ ui <- fluidPage(
                              sliderInput("latRng", "Latitude", value = c(24,50), min=24, max=80),
                              radioButtons(inputId = "column",
                                           label = "Select Data to Plot:",
-                                          choiceValues = c("relVal_tot", "relVal_seas", "rawVal"),
-                                          choiceNames = c("Percentile", "Percentile for Season", "Raw Value")),
+                                          choiceValues = c("relVal_tot", "relVal_seas"),# "rawVal"),
+                                          choiceNames = c("Percentile", "Percentile for Season")),# "Raw Value")),
                              radioButtons(inputId = "shippingLoc",
                                           label = "Select Port:",
                                           choiceValues = c(4397, 4646, 4394, 4515),
@@ -50,7 +51,7 @@ ui <- fluidPage(
 # verbatimTextOutput("info"))
 
 server <- function(input, output) {
-  plotter_sf = sf::st_read(paste0('./waterways_', "2023-09-18", '.gpkg'))
+  plotter_sf = sf::st_read(paste0('./waterways_', "2023-09-20", '.gpkg'))
   plotter_dt = st_drop_geometry(plotter_sf)
   waterWaysDb_sf = sf::st_read('./waterWaysAndDistancesCONUS_QandH_sf.gpkg')
   waterWaysDb_dt = st_drop_geometry(waterWaysDb_sf)

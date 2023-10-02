@@ -5,7 +5,7 @@ account: atashie
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 9545957
-bundleId: 7532834
+bundleId: 7707270
 url: https://atashie.shinyapps.io/riverTrans_shinyApp2/
 version: 1
 asMultiple: FALSE

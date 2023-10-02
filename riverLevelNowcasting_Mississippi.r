@@ -143,7 +143,7 @@ while(keepSearching)  {
   }
 }
 
-gageList = which(waterWaysDb_sf$nearestNeighborDist_Q <= 100)
+gageList = which(waterWaysDb_sf$nearestNeighborDist_Q <= 1000)
 ggplot(data = waterWaysDb_sf)	+
   #  geom_sf(data = norAmBoundingBox_sf) +
   geom_sf(data = subset(waterWaysDb_sf, WTWY_TYPE %in% c(6,8,9) & !is.na(LENGTH1)), aes(color = 'SHAPE1')) +
