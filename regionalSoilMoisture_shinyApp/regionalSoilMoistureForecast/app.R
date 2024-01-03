@@ -22,20 +22,22 @@ ui <- fluidPage(
   titlePanel("Soil Moisture: % Saturation and % Difference from Climatology"),
   hr(),
   fluidRow(
-    column(3,
+    column(5,
            selectInput("monthsOut", "Months Out:",
                        c("Current Month"=1,"Next Month"=2,"2-3 Months"=3,"3-4 Months"=4,"4-5 Months"=5,"5-6 Months"=6))
     ),
-    column(3,
-           selectInput("mapType", "Map Type:",
-                       c("High Impact Dryness"=4, "Heat Map"=1, "Contour Map"=2, "States Map"=3))
+    column(2
     ),
-    column(3,
-           sliderInput("opacity", "Opacity", 0, 1, value=0.7, step=0.1)
-    ),
-    column(3,
-           selectInput("stressThresh", "High Impact Dryness Selector (relative dryness):",
-                       c("Somewhat Drier"=-4, "Drier"=-8, "Much Drier"=-12))
+#    column(3,
+#           sliderInput("opacity", "Opacity", 0, 1, value=0.7, step=0.1)
+#    ),
+    column(5,
+           fluidRow(
+             selectInput("mapType", "Map Display Type:",
+                         c("Contour Map"=2, "High Impact Dryness"=4, "Pixels ('Heat Map')"=1, "States Map"=3)),
+             selectInput("stressThresh", "High Impact Dryness Selector (only updates 'High Impact Dryness' map):",
+                         c("Somewhat Drier (< -4%)"=-4, "Drier (< -8%)"=-8, "Much Drier (< -12%)"=-12))
+           )
     ),
   ),
   hr(),
@@ -71,12 +73,12 @@ server <- function(input, output, session) {
   
     leaflet() %>%
       addProviderTiles(providers$CartoDB.Positron) %>%
-      addRasterImage(thisBrkLayer, color=pal1, opacity = input$opacity * ifelse(input$mapType %in% c(1,4), 1, 0)) %>%
-      addPolygons(data=isoHets, color="transparent", weight=0, fillColor=~pal1(isomean), fillOpacity = input$opacity * ifelse(input$mapType == 2, 1, 0)) %>%
-      addPolygons(data=thisCountry, color="grey10", weight=0.1, fillColor=~pal1(plotCol_abs), fillOpacity = input$opacity * ifelse(input$mapType == 3, 1, 0)) %>%
-      addProviderTiles(providers$CartoDB.PositronOnlyLabels) %>%
+      addRasterImage(thisBrkLayer, color=pal1, opacity = 0.6 * ifelse(input$mapType %in% c(1,4), 1, 0)) %>%
+      addPolygons(data=isoHets, color="transparent", weight=0, fillColor=~pal1(isomean), fillOpacity = 0.6 * ifelse(input$mapType == 2, 1, 0)) %>%
+      addPolygons(data=thisCountry, color="grey10", weight=0.1, fillColor=~pal1(plotCol_abs), fillOpacity = 0.6 * ifelse(input$mapType == 3, 1, 0)) %>%
       setView(lng = initialLng, lat = initialLat, zoom = 4) %>%
-      addLegend(data=isoHets, "bottomleft", title="Soil Saturation", pal=pal1, values=~isomean, labFormat=labelFormat(suffix="%"), opacity=1) %>%
+      addLegend(data=isoHets, "bottomleft", title="Soil </br> % Saturation", pal=pal1, values=~isomean, labFormat=labelFormat(suffix="%"), opacity=1) %>%
+      addProviderTiles(providers$CartoDB.PositronOnlyLabels) %>%
       htmlwidgets::onRender(
         'function(el, x) {
           var map = this;
@@ -109,13 +111,13 @@ server <- function(input, output, session) {
 
     leaflet() %>%
       addProviderTiles("CartoDB.PositronNoLabels") %>%
-      addRasterImage(thisBrkLayer, opacity=input$opacity * ifelse(input$mapType == 1, 1, 0), colors = pal2) %>%
-      addPolygons(data=isoHets, color="transparent", fillColor=~pal2(isomean), fillOpacity=input$opacity * ifelse(input$mapType == 2, 1, 0),) %>%
-      addPolygons(data=thisCountry, color="grey10", weight=0.1, fillColor=~pal2(plotCol_dif), fillOpacity=input$opacity * ifelse(input$mapType == 3, 1, 0)) %>%
-      addRasterImage(thisBrkLayer_highStress, colors=pal2, opacity=input$opacity * ifelse(input$mapType == 4, 1, 0)) %>%
+      addRasterImage(thisBrkLayer, opacity=0.6 * ifelse(input$mapType == 1, 1, 0), colors = pal2) %>%
+      addPolygons(data=isoHets, color="transparent", fillColor=~pal2(isomean), fillOpacity=0.6 * ifelse(input$mapType == 2, 1, 0),) %>%
+      addPolygons(data=thisCountry, color="grey10", weight=0.1, fillColor=~pal2(plotCol_dif), fillOpacity=0.6 * ifelse(input$mapType == 3, 1, 0)) %>%
+      addRasterImage(thisBrkLayer_highStress, colors=pal2, opacity=0.6 * ifelse(input$mapType == 4, 1, 0)) %>%
       addProviderTiles("CartoDB.PositronOnlyLabels") %>%
       setView(lng = initialLng, lat = initialLat, zoom = 4) %>%
-      addLegend(data=isoHets, "bottomleft", title="Difference (%)", pal=pal2, values=~isomean, labFormat=labelFormat(suffix="%"), opacity=1)
+      addLegend(data=isoHets, "bottomleft", title="% Difference</br>from</br>Climatology", pal=pal2, values=~isomean, labFormat=labelFormat(suffix="%"), opacity=1)
   })
 #  observe({
 #    # Update reactive values when input changes
