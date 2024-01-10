@@ -7,9 +7,9 @@ infiltration_f = function(PPT = NA, crn = 50, Smax = 100, Ia_scalar = 0.2){
 	return(infil)
 	}
 	
-PET_f = function(	)	{
-	
-	}
+#PET_f = function(	)	{
+#	
+#	}
 
 	
 	# soil moisture 
