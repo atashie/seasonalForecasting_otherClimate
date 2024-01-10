@@ -7,12 +7,17 @@
 #    http://shiny.rstudio.com/
 #
 
-library(ggplot2)
+library(mapview)
+library(leaflet)
+library(leafpop)
 library(sf)
 library(data.table)
-library(maps)
+library(viridis)
+library(ggplot2)
+#library(mapiso)
+#library(terra)
 library(shiny)
-
+sf_use_s2(FALSE)
 
 ui <- fluidPage(
   titlePanel("River Transportation (beta)"),
@@ -20,111 +25,75 @@ ui <- fluidPage(
   sidebarLayout(position='left',
                 sidebarPanel('User Interface',
                              width = 3,
-                             sliderInput("lonRng", "Longitude", value = c(-126,-65), min=-130, max=-55),
-                             sliderInput("latRng", "Latitude", value = c(24,50), min=24, max=80),
-                             radioButtons(inputId = "column",
+                            radioButtons(inputId = "varType",
                                           label = "Select Data to Plot:",
-                                          choiceValues = c("relVal_tot", "relVal_seas"),# "rawVal"),
-                                          choiceNames = c("Percentile", "Percentile for Season")),# "Raw Value")),
+                                          choiceValues = c("Annual_Avg_pct", "Season_Avg_pct"),# "rawVal"),
+                                          choiceNames = c("Percentile (annual)", "Percentile (for this time of year)")),# "Raw Value")),
                              radioButtons(inputId = "shippingLoc",
                                           label = "Select Port:",
-                                          choiceValues = c(4397, 4646, 4394, 4515),
+                                          choiceValues = c(4625, 6124, 5451, 5890),
                                           choiceNames = c("Warehouse X1B", "Manufacturing 21A", 'Manufacturing 27C', 'Headquarters'))
                           ),
                 mainPanel('Data Outputs',
                           width = 9,
                           fluidRow(
-                            plotOutput("myMap", height = 800),
-#                            splitLayout(style = "border: 1px solid silver:", cellWidths = c(300,200),
-                             plotOutput("myPlot", click = "plot_click"),
-                             tableOutput('HitSpots')
-#                                        )
+                            mapviewOutput("myMap")
                           )
                 )
   )
 )
-                            
-#  plotOutput("myMap"),
-#  plotOutput("myPlot", click = "plot_click"),
-#  plotOutput('myPlot', brush = brushOpts(id = 'plot_brush')),
-#  ,
-# verbatimTextOutput("info"))
+   
 
 server <- function(input, output) {
-  plotter_sf = sf::st_read(paste0('./waterways_', "2023-09-20", '.gpkg'))
-  plotter_dt = st_drop_geometry(plotter_sf)
-  waterWaysDb_sf = sf::st_read('./waterWaysAndDistancesCONUS_QandH_sf.gpkg')
+  Data = sf::st_read(paste0('./waterways_', "2024-01-05", '.gpkg'))
+  Data$Annual_Avg_pct = Data$relVal_tot * 100
+  Data$Season_Avg_pct = Data$relVal_seas * 100
+  Data$Current_Flow_cfs = Data$rawVal
+  plotter_dt = st_drop_geometry(Data)
+  waterWaysDb_sf = sf::st_read('./waterWaysAndDistancesCONUS_QandH_sf.gpkg')#subset(sf::st_read('./waterWaysAndDistancesCONUS_QandH_sf.gpkg'),  WTWY_TYPE %in% c(6,8,9))# & !is.na(LENGTH1))
   waterWaysDb_dt = st_drop_geometry(waterWaysDb_sf)
-  provinces10 = st_as_sf(st_read('./ne_10m_admin_1_states_provinces.shp'))
+  #  names(st_geometry(waterWaysDb_sf)) = NULL
   
+ 
+  output$myMap <- renderLeaflet({
+    thisPal <- turbo(n=10, begin=0, end=1, direction = -1)
+    thisCol = input$varType   
 
-  downStreamTable = reactive({
     keepSearching = TRUE
-    downStreamNodes = as.numeric(input$shippingLoc)
-    
-    downStreamLengths = waterWaysDb_dt$LENGTH[downStreamNodes]
+    downStreamNodes = as.integer(input$shippingLoc)
     while(keepSearching)  {
       nextNode = which(waterWaysDb_dt$ANODE == waterWaysDb_dt$BNODE[data.table::last(downStreamNodes)])  
-                            
+      
       if(length(nextNode) == 0) {
         keepSearching = FALSE
       } else  {
         downStreamNodes = c(downStreamNodes, nextNode)
-        downStreamLengths = c(downStreamLengths, data.table::last(downStreamLengths) + 
-                                                                    waterWaysDb_dt$LENGTH[nextNode])
-      }
+     }
     }
     
-   return(data.frame(Node = downStreamNodes, Length = downStreamLengths))
-  })
-  
+    nodes_sf = waterWaysDb_sf[downStreamNodes,]
+    mapCenter_sf = st_centroid(nodes_sf[1,])
+    mapCenter = as.matrix(st_coordinates(mapCenter_sf))
+    latCent = as.numeric(mapCenter[1,2])
+    lngCent = as.numeric(mapCenter[1,1])
  
-     
-  output$myMap <- renderPlot({
-    ggplot(data = plotter_sf) +
-#      geom_sf(data = availableGages_Q_sf, size = 1, color='grey85') +
-      borders('world', xlim=c(-100, -80), ylim=c(25, 51), 
-              colour='gray90', size=.2, fill='grey80')	+
-      geom_sf(data=subset(provinces10, geonunit=='United States of America'),
-              colour='grey80', fill='grey95') +
-      geom_sf(data = subset(waterWaysDb_sf, WTWY_TYPE %in% c(6,8,9) & !is.na(LENGTH1)), 
-              color = 'black', linetype = '11', linewidth = 0.7) +
-      #  geom_sf(data = plotter_sf, aes(colour = relVal_seas), linewidth = 1.4) +
-      geom_sf(data = plotter_sf, aes_string(colour = input$column), linewidth = 1.4) +
-      geom_sf(data = waterWaysDb_sf[downStreamTable()$Node, ], color='royalblue1', linetype = '12', linewidth = 1.1) +
-      #  geom_sf(data = plotter_sf, aes(colour = rawVal), linewidth = 1.4) +
-      scale_colour_viridis_c(
-        limits = c(0,1),
-        labels = scales::percent, 
-        name = 'Current Percentile',
-        option='plasma') +
-      theme(text = element_text(size = 12), legend.position = 'bottom') +
-      ylab(NULL)+
-      xlab(NULL)+
-      coord_sf(xlim = input$lonRng, ylim = input$latRng, expand = FALSE)
-    #  scale_color_gradient(trans = 'log')
-  }, res = 96 * 1.0)
-  
-  
-  tablePlotterF = reactive({
-    thisCol = which(names(plotter_dt) == input$column)
-    tablePlotter = downStreamTable()
-    tablePlotter$downStreamVals = NA
-    for(i in 1:nrow(tablePlotter)) {
-      if(waterWaysDb_dt$ID[tablePlotter$Node[i]] %in% plotter_dt$ID){
-        tablePlotter$downStreamVals[i] = 
+
+      # dt for pupup graph
+    downStreamPlotter = data.table(Distance = cumsum(waterWaysDb_dt$LENGTH[downStreamNodes]) - waterWaysDb_dt$LENGTH[downStreamNodes[1]], downStreamVals = NA)
+    thisColNum = which(names(plotter_dt) == thisCol)
+    for(i in 1:length(downStreamNodes)) {
+      if(waterWaysDb_dt$ID[downStreamNodes[i]] %in% plotter_dt$ID){
+        downStreamPlotter$downStreamVals[i] = 
           #          plotter_dt[which(plotter_dt$ID == waterWaysDb_sf$ID[downStreamNodes[i]]), input$column]
-          plotter_dt[which(plotter_dt$ID == waterWaysDb_sf$ID[tablePlotter$Node[i]]), thisCol]
+          plotter_dt[which(plotter_dt$ID == waterWaysDb_dt$ID[downStreamNodes[i]]), thisColNum]
       }
     }
-    tablePlotter$plotValPct = tablePlotter$downStreamVals * 100
-    return(tablePlotter)
-  })
     
-
-  output$myPlot = renderPlot({
-     xMax = max(tablePlotterF()$Length)
-    ggplot(data = tablePlotterF(), aes(x=Length, y=plotValPct)) +
+      # ggplot object for popup graph
+    xMax = max(downStreamPlotter$Distance)
+    lineSpline = as.data.frame(spline(downStreamPlotter$Distance, downStreamPlotter$downStreamVals))
+    p2 = ggplot(data=downStreamPlotter, aes(x=Distance, y=downStreamVals), ylim=c(0,100)) +
+      ggtitle("Downstream Flow Percentiles")+
       annotate(geom = "rect", xmin = 0, xmax = xMax, ymin = 98, ymax = 100,
                fill = "red3", alpha = 0.5) +
       annotate(geom = "rect", xmin = 0, xmax = xMax, ymin = 95, ymax = 98,
@@ -140,21 +109,21 @@ server <- function(input, output) {
       annotate(geom = "rect", xmin = 0, xmax = xMax, ymin = 20, ymax = 90,
                fill = "royalblue1", alpha = 0.1) +
       geom_point(shape = 25, size=7, color = 'grey10', stroke=1.4) +
-      theme_minimal()+
-      theme(text = element_text(size = 12)) +
-      ylim(0,100) +
-      labs(x = "Distance from Location (km)", y="Current Percentile")
+      xlab("Distance Downstream") + ylab("Percentile Flow") +
+#      geom_smooth(method = "loess") +
+#      geom_line(data = lineSpline, aes(x = x, y = y)) +
+      theme_minimal()
+    
+    mapviewsCombined = 
+      mapview(nodes_sf, lwd=4, lty=3, color='purple', alpha= 0.1, legend=FALSE)+
+      mapview(Data,
+        zcol=thisCol, color=thisPal, lwd = 2, legend.opacity=0.8,layer.name="percentile",
+        popup = popupTable(Data, zcol = c("Annual_Avg_pct", "Season_Avg_pct", "Current_Flow_cfs"))
+      ) +
+      mapview(mapCenter_sf, color='purple', col.regions="yellow2", legend=FALSE,
+        popup = popupGraph(list(p2), width=400, height=200))
+    mapviewsCombined@map %>% setView(lat=latCent, lng=lngCent, zoom = 5)
   })
-  
-  element_text(size = 20)
-   
-  hit = reactive({nearPoints(tablePlotterF(), input$plot_click)})
-
-
-  
-  output$HitSpots = renderTable({
-    hit()
-  })  
   
 
 }
