@@ -24,7 +24,7 @@ ui <- fluidPage(
   fluidRow(
     column(5,
            selectInput("monthsOut", "Months Out:",
-                       c("Current Month"=1,"Next Month"=2,"2-3 Months"=3,"3-4 Months"=4,"4-5 Months"=5,"5-6 Months"=6))
+                       c("End of Current Month"=1,"Next Month"=2,"2-3 Months"=3,"3-4 Months"=4,"4-5 Months"=5,"5-6 Months"=6))
     ),
     column(2
     ),

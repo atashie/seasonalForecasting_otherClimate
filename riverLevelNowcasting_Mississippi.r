@@ -143,12 +143,13 @@ while(keepSearching)  {
   }
 }
 
-gageList = which(waterWaysDb_sf$nearestNeighborDist_Q <= 1000)
-ggplot(data = waterWaysDb_sf)	+
+inlandWW_sf = subset(waterWaysDb_sf, WTWY_TYPE %in% c(6,8,9) & !is.na(LENGTH1))
+gageList = which(inlandWW_sf$nearestNeighborDist_Q <= 1000)
+ggplot(data = inlandWW_sf)	+
   #  geom_sf(data = norAmBoundingBox_sf) +
-  geom_sf(data = subset(waterWaysDb_sf, WTWY_TYPE %in% c(6,8,9) & !is.na(LENGTH1)), aes(color = 'SHAPE1')) +
-  geom_sf(data = waterWaysDb_sf[gageList, ], aes(color = 'SHAPE_length')) +
-  geom_sf(data = waterWaysDb_sf[downStreamNodes, ], color='purple') +
+  geom_sf(data = inlandWW_sf, aes(color = 'SHAPE1')) +
+  geom_sf(data = inlandWW_sf[gageList, ], aes(color = 'SHAPE_length')) +
+  geom_sf(data = inlandWW_sf[downStreamNodes, ], color='purple') +
   #  geom_sf(data = usgsStageGages_sf, size = 1, fill='black') +
   coord_sf(xlim = c(-100, -80), ylim = c(25, 51), expand = FALSE)
 #  scale_color_gradient(trans = 'log')
@@ -156,12 +157,12 @@ ggplot(data = waterWaysDb_sf)	+
 
 
 
-gagedWaterways = waterWaysDb_sf[gageList, ]
+gagedWaterways = inlandWW_sf#[gageList, ]
 gageAvgs = data.frame(STAID = NA, Q10 = NA, Q25 = NA, Q50 = NA, Q75 = NA, Q90 = NA, min = NA, max = NA)
 gageDoyAvgs_ls = list()
 missingData = matrix(NA, 1,2)
 
-for(i in 1:nrow(gagedWaterways)){
+for(i in gageList){
   thisData = readNWISdv(siteNumber = gagedWaterways$site_no_Q[i],
                         parameterCd = '00060', #00065 stage; 00060 is Q
                         startDate = '1980-01-01')
@@ -219,16 +220,16 @@ availableGages_H_sf = sf::st_as_sf(availableGages_H, coords = c('dec_long_va', '
 
 
 
-which(waterWaysDb_sf$ANODE == waterWaysDb_sf$BNODE[1])
+which(inlandWW_sf$ANODE == inlandWW_sf$BNODE[1])
 
 ocean50 = st_as_sf(st_read('J:\\Cai_data\\ne_10m_ocean\\ne_10m_ocean.shp'))
 countries10 = st_as_sf(st_read('J:\\Cai_data\\ne_10m_admin_0_countries\\ne_10m_admin_0_countries.shp'))
 provinces10 = st_as_sf(st_read('J:\\Cai_data\\ne_10m_admin_1_states_provinces\\ne_10m_admin_1_states_provinces.shp'))
 
-ggplot(data = waterWaysDb_sf) +
+ggplot(data = inlandWW_sf) +
   geom_sf(data=subset(provinces10, geonunit=='United States of America'),
           colour='grey80', fill='grey95') +
-  geom_sf(data = subset(waterWaysDb_sf, WTWY_TYPE %in% c(6,8,9) & !is.na(LENGTH1)), 
+  geom_sf(data = subset(inlandWW_sf, WTWY_TYPE %in% c(6,8,9) & !is.na(LENGTH1)), 
           aes(color = 'SHAPE_length'), linewidth = 0.8) +
   geom_sf(data = availableGages_Q_sf, size = 0.5, color='grey50') +
   geom_sf(data = gagedWaterways, color = 'royalblue2', linewidth = 1.2) +
@@ -236,14 +237,14 @@ ggplot(data = waterWaysDb_sf) +
 #  scale_color_gradient(trans = 'log')
 
 
-plotter_sf = gagedWaterways
+plotter_sf = inlandWW_sf
 plotter_sf$relVal_tot = NA
 plotter_sf$relVal_seas = NA
 plotter_sf$rawVal = NA
 recentDate = Sys.Date() - 30
-for(thisReach in 1:nrow(plotter_sf)){
+for(thisReach in gageList){
   
-  currentStrmVal =  readNWISdv(siteNumber = gagedWaterways$site_no_Q[thisReach],
+  currentStrmVal =  readNWISdv(siteNumber = plotter_sf$site_no_Q[thisReach],
                                parameterCd = '00060', #00065 stage; 00060 is Q
                                startDate = recentDate)
   
@@ -290,7 +291,7 @@ ggplot(data = plotter_sf) +
           colour='gray90', size=.2, fill='grey80')	+
   geom_sf(data=subset(provinces10, geonunit=='United States of America'),
           colour='grey80', fill='grey95') +
-  geom_sf(data = subset(waterWaysDb_sf, WTWY_TYPE %in% c(6,8,9) & !is.na(LENGTH1)), 
+  geom_sf(data = subset(inlandWW_sf, WTWY_TYPE %in% c(6,8,9) & !is.na(LENGTH1)), 
           color = 'black', linetype = '11', linewidth = 0.3) +
   #  geom_sf(data = plotter_sf, aes(colour = relVal_seas), linewidth = 1.4) +
   geom_sf(data = plotter_sf, aes(colour = relVal_tot), linewidth = 1.4) +
