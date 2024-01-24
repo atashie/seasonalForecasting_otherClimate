@@ -20,7 +20,7 @@ library(shiny)
 sf_use_s2(FALSE)
 
 ui <- fluidPage(
-  titlePanel("River Transportation (beta)"),
+  titlePanel(title=div(img(src="./CAi2.png", height=50, width=200), "River Transportation (beta)")),
   
   sidebarLayout(position='left',
                 sidebarPanel('User Interface',
@@ -32,10 +32,10 @@ ui <- fluidPage(
                              radioButtons(inputId = "shippingLoc",
                                           label = "Select Port:",
                                           choiceValues = c(4625, 6124, 5451, 5890),
-                                          choiceNames = c("Warehouse X1B", "Manufacturing 21A", 'Manufacturing 27C', 'Headquarters'))
-                          ),
-                mainPanel('Data Outputs',
-                          width = 9,
+                                          choiceNames = c("Warehouse X1B", "Manufacturing 21A", 'Manufacturing 27C', 'Headquarters')),
+                            downloadButton("downloadData", "Download")
+                           ),
+                mainPanel(width = 9,
                           fluidRow(
                             mapviewOutput("myMap")
                           )
@@ -125,7 +125,14 @@ server <- function(input, output) {
     mapviewsCombined@map %>% setView(lat=latCent, lng=lngCent, zoom = 5)
   })
   
-
+  #Download dataframe
+  output$downloadData <- downloadHandler(
+    filename = "test.gpkg",
+    content = function(filename) {
+      sf::st_write(Data, filename, row.names = FALSE)
+    }
+  )
+  
 }
 
 shinyApp(ui, server)
