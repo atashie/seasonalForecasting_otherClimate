@@ -1,0 +1,10 @@
+mapview
+leaflet
+leafpop
+sf
+data.table
+viridis
+ggplot2
+#library(mapiso)
+#library(terra)
+shiny
