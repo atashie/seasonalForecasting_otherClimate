@@ -5,7 +5,7 @@ account: atashie
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10973175
-bundleId: 8175978
+bundleId: 8230955
 url: https://atashie.shinyapps.io/waterRiskIndex_shinyApp/
 version: 1
 asMultiple: FALSE
