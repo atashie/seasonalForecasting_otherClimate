@@ -28,7 +28,8 @@ library(gridExtra)
 library(ggrepel)
 library(DT) # for interactive tables via datatable()
 #library(plotly)
-customerInputTable = data.table::fread("./Data/Customer Onboarding Information_NuveenCali_Jan2024.csv", skip=1)
+#customerInputTable = data.table::fread("./Data/Customer Onboarding Information_NuveenCali_Jan2024.csv", skip=1)
+customerInputTable = data.table::fread("./Data/Customer Onboarding Information_RaboChile.csv", skip=1)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -130,11 +131,23 @@ ui <- fluidPage(
                   fluidRow(
                     class="myRow2",
                     column(7,
-                           selectInput(inputId = "stressClass", label = "Stress Class:",
-                                        c("Local (drought)" = 2, "Local (typical)" = 1, 
-                                          "L + Regional (drought)" = 4, "L + Regional (typical)" = 3)
+                           fluidRow(
+                             column(6,
+                                    selectInput(inputId = "stressClass", label = "Stress Class:",
+                                                c("Local (drought)" = 2, "Local (typical)" = 1, 
+                                                  "Regional (drought)" = 4, "Regional (typical)" = 3,
+                                                  "Aridity Index" = 5),
+                                                selected = 5
+                                                )
+                                    ),
+                             column(6,
+                                    radioButtons(inputId = "locationToggle", label = "Toggle Locations",
+                                                 choices = list("Show" = 0.5, "Hide" = 0), selected = 0.5
+                                                 )
+                                    )
                            ),
-                           mapviewOutput("pfMap", height = "400px")),
+                           mapviewOutput("pfMap", height = "400px")
+                           ),
                     column(5,
                            h4('Index Values by Decade', style = "text-align: center;"),
                            DT::dataTableOutput("portfolioSummaryTable"))
@@ -230,14 +243,15 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
-  customerInputTable = data.table::fread("./Data/Customer Onboarding Information_NuveenCali_Jan2024.csv", skip=1)
+  customerInputTable = data.table::fread("./Data/Customer Onboarding Information_RaboChile.csv", skip=1)
   customerInputSf = sf::st_as_sf(customerInputTable, coords=c("Longitude", "Latitude"), crs = 4326)
-  climateArray = readRDS("./Data/NuveenCali_Jan2024_regional_rawValues.rds")
-  indexArray = readRDS("./Data/NuveenCali_Jan2024_local_waterIndex.rds")
-  watershedIndexArray = readRDS("./Data/NuveenCali_Jan2024_regional_waterIndex.rds")
-  graceHistorical = data.table::fread("./Data/NuveenCali_Jan2024_graceHistorical.csv")
-  basinSummary = data.table::fread("./Data/NuveenCali_Jan2024_regional_hydroBasins_wIndex.csv")
-  basinShapes = sf::st_read("./Data/NuveenCali_Jan2024_hydroBasins_shapesOnly.shp")
+  climateArray = readRDS("./Data/Rabo_Feb2024_regional_rawValues.rds")
+  indexArray = readRDS("./Data/Rabo_Feb2024_local_waterIndex.rds")
+  watershedIndexArray = readRDS("./Data/Rabo_Feb2024_regional_waterIndex.rds")
+  graceHistorical = data.table::fread("./Data/Rabo_Feb2024_graceHistorical.csv")
+  basinSummary = data.table::fread("./Data/Rabo_Feb2024_regional_hydroBasins_wIndex.csv")
+  basinSummary$AridityIndex = basinSummary$currentPrecip_avg / basinSummary$currentPET_avg
+  basinShapes = sf::st_read("./Data/Rabo_Feb2024_hydroBasins_shapesOnly.shp")
           
   graceSub <- reactive({
     list(subset(graceHistorical, Location == input$location), which(customerInputTable$Location_Name == input$location))
@@ -267,13 +281,20 @@ server <- function(input, output, session) {
   # summary text
   output$summaryText = renderText({
     basinSub = basinSummary[as.numeric(graceSub()[[2]]), ]
-    incOrDecGrace = ifelse(basinSub$recentHistoricSlope >= 0, "increase", "decrease") 
-    myText = paste0("Recent historical storage ", incOrDecGrace, " of ", round(basinSub$recentHistoricSlope, 0), " mm per year, or ",
-                    round(basinSub$rescaledRecentHistoricSlope, 0), " mm per irrigated acre per year. ",
-                    "An estimated ", round(basinSub$thisFrcAreaUnderCult*100, 0), "% of the watershed is devoted to agriculture, with ",
-                    round(basinSub$thisFrcCultAreaWthIrr*100, 0), "% irrigated. And the average water needs for crops in this watershed are ",
-                    round(basinSub$thisWplant, 0), " mm per year.")
-    myText
+    if(basinSub$thisFrcAreaUnderCult >= 0.05)  {
+      incOrDecGrace = ifelse(basinSub$recentHistoricSlope >= 0, "increase", "decrease") 
+      myText = paste0("Recent historical storage ", incOrDecGrace, " of ", round(basinSub$recentHistoricSlope, 0), " mm per year, or ",
+                      round(basinSub$rescaledRecentHistoricSlope, 0), " mm per irrigated acre per year. ",
+                      "An estimated ", round(basinSub$thisFrcAreaUnderCult*100, 0), "% of the watershed is devoted to agriculture, with ",
+                      round(basinSub$thisFrcCultAreaWthIrr*100, 0), "% irrigated. And the average water needs for crops in this watershed are ",
+                      round(basinSub$thisWplant, 0), " mm per year.")
+    } else {
+      incOrDecGrace = ifelse(basinSub$recentHistoricSlope >= 0, "increased", "decreased") 
+      myText = paste0("Agriculture has been neglibible in this watershed, and recent historical storage has ", 
+                      incOrDecGrace, " at a rate of ", round(basinSub$recentHistoricSlope, 0), " mm per year.",
+      )
+    }
+        myText
   })
 
   # water risk index plotter
@@ -301,8 +322,8 @@ server <- function(input, output, session) {
       "Decade" = factor(seq(2010, 2090, 10)), 
       "Local (drought)" =        indexArray[thisLoc, , 4, thisScen, 4, thisValType],
       "Local (average)" =        indexArray[thisLoc, , 4, thisScen, 2, thisValType],
-      "L + Regional (drought)" = indexArray[thisLoc, , 4, thisScen, 8, thisValType],
-      "L + Regional (average)" = indexArray[thisLoc, , 4, thisScen, 6, thisValType]
+      "Regional (drought)" = indexArray[thisLoc, , 4, thisScen, 8, thisValType],
+      "Regional (average)" = indexArray[thisLoc, , 4, thisScen, 6, thisValType]
     )
     myTable
   })
@@ -331,7 +352,7 @@ server <- function(input, output, session) {
   colorScale <- colorNumeric(palette = thisPal, domain = c(0, 2))
   
   output$pfMap = renderLeaflet({
-    plotThisCol = c("currentRatio_A", "currentRatio_B", "currentRatio_C", "currentRatio_D")[as.numeric(input$stressClass)]
+    plotThisCol = c("currentRatio_A", "currentRatio_B", "currentRatio_C", "currentRatio_D","AridityIndex")[as.numeric(input$stressClass)]
     watershed_plotter = Watershed_Boundaries[,plotThisCol]
     mapviewOptions(basemaps = c("OpenStreetMap.DE","Esri.WorldImagery", "Esri.WorldShadedRelief", "OpenTopoMap"))
     myMap =
@@ -339,7 +360,8 @@ server <- function(input, output, session) {
         watershed_plotter, at = seq(0,2,0.2), col.regions = thisPal, 
         color = 'grey20', lwd = 1, alpha.regions = 0.5, legend=TRUE, layer.name="Current Index Value"
       ) +
-      mapview(customerInputSf, alpha = 0.5, cex = 3.75, col.regions="forestgreen", legend=FALSE)
+      mapview(customerInputSf, alpha = as.numeric(input$locationToggle), cex = 3.75, col.regions="forestgreen", 
+              alpha.regions = as.numeric(input$locationToggle), legend=FALSE)
     myMap@map
   })
 
