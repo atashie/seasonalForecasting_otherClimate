@@ -12,11 +12,19 @@ library(ggmap) # downloading raster maps from a variety of sources
 library(ggspatial) # map backgrounds and annotations for ggplot
 library(tmap) # static/interactive map library with ggplot-like syntax
 
+userDataLocation = "C:/Users/arik/Documents/GitHub/RiverLevelMonitor_Simplot_Beta/Data/"
+waterWaysFolder = 'J:\\Cai_data\\Waterways\\'
 
+
+######################################################################################################
+######################################################################################################
+######################################################################################################
+## section 00: this section does not need to be re-run to update databases
+######################################################################################################
 
 
 #####################
-# section: concatenating DoT river networks and USGS gages
+# concatenating DoT river networks and USGS gages
 
   # reading in water data and assessing
 waterWaysFolder = 'J:\\Cai_data\\Waterways\\'
@@ -50,7 +58,7 @@ for(thisState in unique(waterWaysDb_noM$STATE)){
         parameterCd = strmflCd)
   
       dailyDataSub_Q = subset(dailyDataAvailable_Q,
-                              end_date > as.Date('2023-01-01') & count_nu > (365*10) & stat_cd == '00003')
+                              end_date > as.Date('2024-01-01') & count_nu > (365*1) & stat_cd == '00003')
   
       gageHeightCd = '00065' # 00065 gage height; 00060 is Q
       hasGageData = NULL
@@ -62,7 +70,7 @@ for(thisState in unique(waterWaysDb_noM$STATE)){
           parameterCd = gageHeightCd)
         
         dailyDataSub_H = subset(dailyDataAvailable_H,
-                                end_date > as.Date('2023-01-01') & count_nu > (365*10) & stat_cd == '00003')
+                                end_date > as.Date('2024-01-01') & count_nu > (365*1) & stat_cd == '00003')
    
         if(iter == 1)  {
           availableGages_Q = dailyDataSub_Q
@@ -78,9 +86,11 @@ for(thisState in unique(waterWaysDb_noM$STATE)){
   # commenting out to prevent accidental overwriting
 #data.table::fwrite(availableGages_Q, 'J:\\Cai_data\\Waterways\\usDailyStreamStageGages_Q.csv')
 #data.table::fwrite(availableGages_H, 'J:\\Cai_data\\Waterways\\usDailyStreamStageGages_H.csv')
+#data.table::fwrite(availableGages_Q, 'J:\\Cai_data\\Waterways\\usDailyStreamStageGages_Q_long.csv')
+#data.table::fwrite(availableGages_H, 'J:\\Cai_data\\Waterways\\usDailyStreamStageGages_H_long.csv')
 
-availableGages_Q = data.table::fread('J:\\Cai_data\\Waterways\\usDailyStreamStageGages_Q.csv', colClasses = c('site_no' = 'character'))
-availableGages_H = data.table::fread('J:\\Cai_data\\Waterways\\usDailyStreamStageGages_H.csv', colClasses = c('site_no' = 'character'))
+availableGages_Q = data.table::fread(paste0(waterWaysFolder, 'usDailyStreamStageGages_Q_long.csv'), colClasses = c('site_no' = 'character'))
+availableGages_H = data.table::fread(paste0(waterWaysFolder, 'usDailyStreamStageGages_H_long.csv'), colClasses = c('site_no' = 'character'))
 
 
 availableGages_Q_sf = sf::st_as_sf(availableGages_Q, coords = c('dec_long_va', 'dec_lat_va'), crs = 4326)
@@ -120,30 +130,30 @@ waterWaysDb_noM$lat_H = availableGages_H$dec_lat_va[nearestNeighbor_H]
 waterWaysDb_noM$lon_H = availableGages_H$dec_long_va[nearestNeighbor_H]
 
   # commenting out so I don't accidentally overwrite
-sf::st_write(waterWaysDb_noM, 'J:\\Cai_data\\Waterways\\waterWaysAndDistancesCONUS_QandH_sf_2.gpkg')
+sf::st_write(waterWaysDb_noM, paste0(waterWaysFolder, 'waterWaysAndDistancesCONUS_QandH_sf_2.gpkg'))
 
-##### end of section 
-###############################################
-
-
-
-
-
+######################################################################################################
+## end of section 00: this section does not need to be re-run to update databases
+######################################################################################################
+######################################################################################################
+######################################################################################################
 
 
 
 
 
 
-
-
-
+######################################################################################################
+######################################################################################################
+######################################################################################################
+## start of section 1: this section is used to update the database
+######################################################################################################
 
 
 
 
 	# Data Processing for regular updates
-waterWaysDb_sf = sf::st_read('J:\\Cai_data\\Waterways\\waterWaysAndDistancesCONUS_QandH_sf_2.gpkg')
+waterWaysDb_sf = sf::st_read(paste0(userDataLocation, 'waterWaysAndDistancesCONUS_QandH_sf_2.gpkg'))
 inlandWW_sf = subset(waterWaysDb_sf, WTWY_TYPE %in% c(6,8,9)) # inland waterway types
 
 gageList = which(inlandWW_sf$nearestNeighborDist_Q <= 1000)
@@ -217,8 +227,8 @@ for(i in gageList){
 
 
 	# historic and recent data 
-saveRDS(gageDoyAvgs_ls, paste0(waterWaysFolder, 'gageDoyAvgs_ls.rds'))
-data.table::fwrite(gageAvgs, paste0(waterWaysFolder, 'gageAvgs.csv'))
+saveRDS(gageDoyAvgs_ls, paste0(userDataLocation, 'gageDoyAvgs_ls.rds'))
+data.table::fwrite(gageAvgs, paste0(userDataLocation, 'gageAvgs.csv'))
 
 
 
@@ -248,20 +258,33 @@ for(i in gageList){
 		quantSeq_seas[c(1,11,26,51,76,91,100)] = as.numeric(unlist(currentStrmVal[lastNoNaDay,c(7,2,3,4,5,6,8)]))
 		quantSeq_seas = zoo::na.fill(quantSeq_seas, 'extend')
 		   
-		plotter_sf$Annual_Avg_Pct[i] = which.min(abs(currentStrmVal[lastNoNaDay, 4] - quantSeq_tot))
-		plotter_sf$Season_Avg_Pct[i] = which.min(abs(currentStrmVal[lastNoNaDay, 4] - quantSeq_seas))
+		plotter_sf$Annual_Avg_Pct[i] = which.min(abs(currentStrmVal$thisYear[lastNoNaDay] - quantSeq_tot))
+		plotter_sf$Season_Avg_Pct[i] = which.min(abs(currentStrmVal$thisYear[lastNoNaDay] - quantSeq_seas))
 	} else {print(c("no data for gage", i))}
 }
 
-sf::st_write(plotter_sf, paste0(waterWaysFolder, 'waterwaysWithCurrentVals.gpkg'), append=FALSE)
+sf::st_write(plotter_sf, paste0(userDataLocation, 'waterwaysWithCurrentVals.gpkg'), append=FALSE)
+
+
+# updating USACE data
+source("C:/Users/arik/Documents/GitHub/seasonalForecasting_otherClimate_/gageRssFeed_function.r")
+customerInputTable = data.table::fread("C:/Users/arik/Documents/GitHub/RiverLevelMonitor_Simplot_Beta/Data/CustomerOnboardingTemplate.csv")
+gageRssFeed_f(customerInputTable = customerInputTable, userDataLocation = userDataLocation)
+
+
+######################################################################################################
+## end of section 1: this section is used to update the database
+######################################################################################################
+######################################################################################################
+######################################################################################################
 
 
 
 
 ################## plotting data for inspection
 
-availableGages_Q = data.table::fread('J:\\Cai_data\\Waterways\\usDailyStreamStageGages_Q.csv', colClasses = c('site_no' = 'character'))
-availableGages_H = data.table::fread('J:\\Cai_data\\Waterways\\usDailyStreamStageGages_H.csv', colClasses = c('site_no' = 'character'))
+availableGages_Q = data.table::fread(paste0(waterWaysFolder, 'usDailyStreamStageGages_Q_long.csv'), colClasses = c('site_no' = 'character'))
+availableGages_H = data.table::fread(waterWaysFolder, 'usDailyStreamStageGages_H_long.csv'), colClasses = c('site_no' = 'character'))
 
 availableGages_Q_sf = sf::st_as_sf(availableGages_Q, coords = c('dec_long_va', 'dec_lat_va'), crs = 4326)
 availableGages_H_sf = sf::st_as_sf(availableGages_H, coords = c('dec_long_va', 'dec_lat_va'), crs = 4326)
@@ -321,6 +344,39 @@ ggplot(data = plotter_sf) +
 
 
 
+###################### pulling in and processing USACE data
+jj = tidyRSS::tidyfeed("https://water.weather.gov/ahps2/rss/obs/heea4.rss")
+kk = tidyRSS::tidyfeed("https://water.weather.gov/ahps2/rss/fcst/heea4.rss")
+ll = tidyRSS::tidyfeed("https://water.weather.gov/ahps2/rss/alert/heea4.rss")
 
 
 
+dataPath = "J://Downloads//"
+fileName = "Book2.csv"
+usaceData = data.table::fread(paste0(dataPath, fileName))
+#usaceData$Date <- sprintf("%08d", usaceData$Date)
+usaceData$mydDate = usaceData$mydDate = as.Date(lubridate::mdy_hm(usaceData$Date))
+usaceDataSort = usaceData[order(usaceData$mydDate), c("mydDate", "Stage")]
+
+
+https://rivergages.mvr.usace.army.mil/watercontrol/webservices/rest/webserviceWaterML.cfc?method=RGWML&meth=getValues&site=rcki2&location=rcki2&variable=HP&beginDate=2023-03-26T00:00&endDate=2023-03-26T23:59&authtoken=RiverGages&authToken=RiverGages
+
+
+api1 = "https://rivergages.mvr.usace.army.mil/watercontrol/webservices/rest/webserviceWaterML.cfc?"
+api2 = "method=RGWML&"
+#api3 = "meth=getSites&"
+api3 = "meth=getValues&"
+api4 = "site=rcki2&"
+api5 = "location=crtm7&"
+api6 = "variable=HP&"
+api7 = "beginDate=2023-03-25T00:00&"
+api8 = "endDate=2023-03-26T23:59&"
+api9 = "authtoken=RiverGages&"
+api10 = "authToken=RiverGages"
+mySite = paste0(api1,api2,api3,api4,api5,api6,api7,api8,api9,api10)
+	
+
+
+
+
+	

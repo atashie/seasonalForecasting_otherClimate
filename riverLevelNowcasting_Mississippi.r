@@ -228,8 +228,6 @@ saveRDS(gageDoyAvgs_ls, paste0(waterWaysFolder, 'gageDoyAvgs_ls.rds'))
 data.table::fwrite(gageAvgs, paste0(waterWaysFolder, 'gageAvgs.csv'))
 
 
-gageDoyAvgs_ls = 
-
 
 availableGages_Q = data.table::fread('J:\\Cai_data\\Waterways\\usDailyStreamStageGages_Q.csv', colClasses = c('site_no' = 'character'))
 availableGages_H = data.table::fread('J:\\Cai_data\\Waterways\\usDailyStreamStageGages_H.csv', colClasses = c('site_no' = 'character'))

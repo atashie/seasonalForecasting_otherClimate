@@ -79,17 +79,17 @@ server <- function(input, output) {
 #  availableGages_H_sf = sf::st_as_sf(availableGages_H[ , c("agency_cd", "site_no", "station_nm","begin_date","end_date","dec_long_va", "dec_lat_va")],
 #                                     coords = c("dec_long_va", "dec_lat_va"), crs = 4326)
 
-  # pulling info for tables and location vals
-  portfolioTable = portfolioTableMaker_f(customerGageData = customerGageData, customerInputTable = customerInputTable)
-  customerInputTable_sf = merge(customerInputTable_sf, portfolioTable, by.x="Location_Name",  by.y="Location")
-    
   # pulling USGS data for each location
   customerGageData = locationDataExtractor_f(
     customerInputTable = customerInputTable, 
     customerInputTable_sf = customerInputTable_sf, 
     availableGages_Q = availableGages_Q, 
     mapData = mapData)
-  
+
+    # pulling info for tables and location vals
+  portfolioTable = portfolioTableMaker_f(customerGageData = customerGageData, customerInputTable = customerInputTable)
+  customerInputTable_sf = merge(customerInputTable_sf, portfolioTable, by.x="Location_Name",  by.y="Location")
+
   mapDataColNames = c("Annual_Avg_Pct", "Season_Avg_Pct", "Raw_Value")
   customerInputTableColNames = c("Current_Pct_Annual", "Current_Pct_Season", "Raw_Value")
   
