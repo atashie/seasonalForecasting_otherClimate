@@ -5,7 +5,7 @@ account: atashie
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10711997
-bundleId: 8239515
+bundleId: 8368381
 url: https://atashie.shinyapps.io/regionalSoilMoistureForecast/
 version: 1
 asMultiple: FALSE
