@@ -87,8 +87,8 @@ graceNeighborTileSelection_f = function(
 	closestLon = which.min(abs(graceLons - locationLon))
 
 		# smoothing / downscaling and reweighting based on distance
-	closeishLats = rep(closestLat + c(-1,0,1), 3)
-	closeishLons = rep(closestLon + c(-1,0,1), each = 3)
+	closeishLats = rep(closestLat + c(-3,-2,-1,0,1,2,3), 7)
+	closeishLons = rep(closestLon + c(-3,-2,-1,0,1,2,3), each = 7)
 	closeishLatsVals = (graceLats[closeishLats] - locationLat)^2
 	closeishLonsVals = (graceLons[closeishLons] - locationLon)^2
 	distanceBox = sqrt(closeishLatsVals + closeishLonsVals)
