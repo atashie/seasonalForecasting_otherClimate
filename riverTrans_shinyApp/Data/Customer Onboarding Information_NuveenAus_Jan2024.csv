@@ -1,8 +1,0 @@
-Mandatory Information,,,,Optional Information,,,,,,,,,,,,,,,,,Unused Information,,,,
-Username,Location_Name,Latitude,Longitude,Precipitation_annualAvg_mm,PotentialEvapotranspiration_annualAvg_mm,SurfaceWater_annualAvgFlows_km3,Groundwater_annualAvgRecharge_mm,SoilMoisture_annualAvg_pct,SurfaceWaterDiversion_Percent,SurfaceWaterDiversion_averageInCubicKM,CurrentStorageTrend_mm,Groundwater_Access,SoilMoisture_Access,DripIrrigation,OnsiteReservoirs,GrowMonth_Start,GrowMonth_End,PrimaryCrop,TotalAreaUnderCultivation_km2,Annual_Water_Needs_mm,OnsiteStorage_other,Location_Address,SecondaryCrop,SoilClass,Region
-Nuveen-Aus-Dec2023,Bergen Park,-33.55,147.66,,,,,,,0.00556,,TRUE,TRUE,TRUE,FALSE,10,4,Cotton,6.25,850,889.6,,,,
-Nuveen-Aus-Dec2023,Glencoe,-33.37,147.38,,,,,,,0.003025,,TRUE,TRUE,TRUE,FALSE,10,4,Cotton,6.74,850,448.8130564,,,,
-Nuveen-Aus-Dec2023,Round Cowal,-33.55,147.52,,,,,,,0.000911,,TRUE,TRUE,TRUE,FALSE,10,4,Cotton,1.34,850,679.8507463,,,,
-Nuveen-Aus-Dec2023,Sunshine,-33.52,147.43,,,,,,,0.002126,,TRUE,TRUE,TRUE,FALSE,10,4,Cotton,3.3,850,644.2424242,,,,
-Nuveen-Aus-Dec2023,Warili,-33.41,147.48,,,,,,,0.003064,,TRUE,TRUE,TRUE,FALSE,10,4,Cotton,4.63,850,661.7710583,,,,
-Nuveen-Aus-Dec2023,Aggregate,-33.37,147.38,,,,,,,0.0029372,,TRUE,TRUE,TRUE,FALSE,10,4,Cotton,4.452,850,659.7484277,,,,

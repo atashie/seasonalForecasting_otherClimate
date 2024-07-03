@@ -118,7 +118,7 @@ cropWaterNeeds_f = function(
 	return(cropWaterNeeds)
 	}
 
-	# step 3: estimating irrigation needs for ag lands
+	# step 3a: estimating irrigation needs for ag lands
 irrigation_f = function(
 	irrigatedPctArea = .2,		# pct area that is regularly irrigated with gw
 	cropWaterNeedsTS = cropWaterNeeds,	#ts of crop water needs from above function
@@ -128,6 +128,16 @@ irrigation_f = function(
 	irrigationNeeded = irrigatedPctArea * (cropWaterNeedsTS - infiltrationTS)
 	if(!dripIrrigation)	{irrigationNeeded = irrigationNeeded * 1.5}
 	return(irrigationNeeded)
+	}
+	
+	# step 3b: estimating municipal water demand [not incorporated]
+municipalWaterDemand_f = function(
+	populationScalar = populationScalar,
+	populationTotal = populationTotal,
+	waterPerPersonScalar = waterPerPersonScalar,
+	waterPerPersonTotal = waterPerPersonTotal)
+	{
+	waterDemand = (populationScalar * populationTotal) * (waterPerPersonScalar * waterPerPersonTotal)
 	}
 	
 	# step 4: estimating net groundwater flow across basins
@@ -180,7 +190,8 @@ runRegionalGWmodel_f = function(
 #	histDates = c(climateInput$Date, tail(climateInput$Date, 1) + 1),
 	multiClimateData = NA, 
 	startYear = 2000,
-	endYear = 2099)
+	endYear = 2099,
+	municipalNotAgricultural = FALSE)
 	{		
 
 	if(!is.data.table(multiClimateData))	{
