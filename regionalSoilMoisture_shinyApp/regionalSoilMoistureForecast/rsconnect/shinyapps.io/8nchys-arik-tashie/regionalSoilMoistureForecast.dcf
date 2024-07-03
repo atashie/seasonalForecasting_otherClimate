@@ -1,12 +1,12 @@
 name: regionalSoilMoistureForecast
 title: regionalSoilMoistureForecast
-username: atashie
-account: atashie
+username: 8nchys-arik-tashie
+account: 8nchys-arik-tashie
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
-appId: 10711997
-bundleId: 8588125
-url: https://atashie.shinyapps.io/regionalSoilMoistureForecast/
+appId: 11956189
+bundleId: 8820123
+url: https://climateai.shinyapps.io/regionalSoilMoistureForecast/
 version: 1
 asMultiple: FALSE
 asStatic: FALSE
