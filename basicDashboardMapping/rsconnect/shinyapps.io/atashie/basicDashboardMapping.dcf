@@ -1,0 +1,12 @@
+name: basicDashboardMapping
+title: basicDashboardMapping
+username: atashie
+account: atashie
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12279178
+bundleId:
+url: https://atashie.shinyapps.io/basicDashboardMapping/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

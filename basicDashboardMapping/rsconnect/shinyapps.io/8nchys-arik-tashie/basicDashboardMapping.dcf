@@ -1,0 +1,13 @@
+name: basicDashboardMapping
+title: basicDashboardMapping
+username:
+account: 8nchys-arik-tashie
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12279172
+bundleId: 8829116
+url: https://climateai.shinyapps.io/basicDashboardMapping/
+when: 1720195356.13906
+lastSyncTime: 1720195356.13909
+asMultiple: FALSE
+asStatic: FALSE
