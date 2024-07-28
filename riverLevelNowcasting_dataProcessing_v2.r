@@ -267,9 +267,11 @@ sf::st_write(plotter_sf, paste0(userDataLocation, 'waterwaysWithCurrentVals.gpkg
 
 
 # updating USACE data
-source("C:/Users/arik/Documents/GitHub/seasonalForecasting_otherClimate_/gageRssFeed_function.r")
+#source("C:/Users/arik/Documents/GitHub/seasonalForecasting_otherClimate_/gageRssFeed_function.r")
+source("C:/Users/arik/Documents/GitHub/seasonalForecasting_otherClimate_/gageRssFeed_NWS2024_function.r")
 customerInputTable = data.table::fread("C:/Users/arik/Documents/GitHub/RiverLevelMonitor_Simplot_Beta/Data/CustomerOnboardingTemplate.csv")
-gageRssFeed_f(customerInputTable = customerInputTable, userDataLocation = userDataLocation)
+#gageRssFeed_f(customerInputTable = customerInputTable, userDataLocation = userDataLocation)
+gageRssFeed_NWS2024_f(customerInputTable = customerInputTable, userDataLocation = userDataLocation)
 
 
 ######################################################################################################
