@@ -5,9 +5,9 @@ account: 8nchys-arik-tashie
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 11956189
-bundleId: 9193583
+bundleId: 9335024
 url: https://climateai.shinyapps.io/regionalSoilMoistureForecast/
-when: 1728324175.09082
-lastSyncTime: 1728324175.09085
+when: 1731086021.31874
+lastSyncTime: 1731086021.31875
 asMultiple: FALSE
 asStatic: FALSE
