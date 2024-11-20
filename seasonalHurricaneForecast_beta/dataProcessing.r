@@ -4,9 +4,12 @@
 # path to new data
 dataPath = "C:\\Users\\arik\\Documents\\GitHub\\seasonalForecasting_otherClimate_\\seasonalHurricaneForecast_beta\\"
 unformattedCsv = TRUE # boolean to trigger reformatting to standard out
-	
-seasonName = "Oct01-Dec31"				# ensure this name exactly matches the seasonalFilter column in "basinLevelValues.csv"	# previous iterations: JJASON Aug10-Nov30 Sep1-Dec31 Sep20-Nov30  01-Oct Oct01-Dec31 Oct21-Dec31
-basinName = "north_atlantic"		# ensure this name exactly matches the basin column in "basinLevelValues.csv"  # previous iterations north_atlantic western_pacific indian_ocean
+
+  # ensure this name exactly matches the seasonalFilter column in "basinLevelValues.csv"	
+seasonName = "Nov15-May31"	# previous iterations: JJASON Aug10-Nov30 Sep1-Dec31 Sep20-Nov30  01-Oct Oct01-Dec31 Oct21-Dec31
+  # ensure this name exactly matches the basin column in "basinLevelValues.csv"  
+basinName = "South-West indian_ocean"  # previous iterations north_atlantic, western_pacific, indian_ocean, South-East indian_ocean, South-West indian_ocean, South-Pacific
+
 
 ## end of section that needs to be updated
 ############################################

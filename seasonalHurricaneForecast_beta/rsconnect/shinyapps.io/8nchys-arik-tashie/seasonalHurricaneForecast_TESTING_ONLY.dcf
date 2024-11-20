@@ -5,9 +5,9 @@ account: 8nchys-arik-tashie
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 12957829
-bundleId: 9255186
+bundleId: 9381216
 url: https://climateai.shinyapps.io/seasonalHurricaneForecast_TESTING_ONLY/
-when: 1729606730.58591
-lastSyncTime: 1729606730.58592
+when: 1731947053.26527
+lastSyncTime: 1731947053.26529
 asMultiple: FALSE
 asStatic: FALSE

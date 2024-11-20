@@ -1,5 +1,5 @@
 ####### user needs to update:
-updateDate = "10-21-2024"
+updateDate = "11-15-2024"
 
 ####### may need to be updated if new basins / categories
 # Read in static table w/ hard-coded path
@@ -9,11 +9,17 @@ staticTable <- data.table::fread("./calculatedVals/basinLevelValues.csv")
 categoryNames_northernAtlantic = c("Cat-0","Cat-1","Cat-2","Cat-3","Cat-4")
 categoryNames_westernPacific = c("Cat-0","Cat-1","Cat-2","Cat-3", "Cat-4")
 categoryNames_indianOcean = c("Cat-0","Cat-1","Cat-2")#,"Cat-3", "Cat-4")
+categoryNames_indianOcean_SW = c("Cat-0","Cat-1","Cat-2")#,"Cat-3", "Cat-4")
+categoryNames_indianOcean_SE = c("Cat-0","Cat-1","Cat-2")#,"Cat-3", "Cat-4")
+categoryNames_southPacific = c("Cat-0","Cat-1","Cat-2")#,"Cat-3", "Cat-4")
 
 # Hard-coded names
 seasonNames_northernAtlantic = unique(subset(staticTable, basin == "north_atlantic")$seasonalFilter) # northern atlantic
 seasonNames_westernPacific = unique(subset(staticTable, basin == "western_pacific")$seasonalFilter) # western pacific
 seasonNames_indianOcean = unique(subset(staticTable, basin == "indian_ocean")$seasonalFilter) # indian ocean
+seasonNames_indianOcean_SW = unique(subset(staticTable, basin == "South-West indian_ocean")$seasonalFilter) # SW indian ocean
+seasonNames_indianOcean_SE = unique(subset(staticTable, basin == "South-East indian_ocean")$seasonalFilter) # SE indian ocean
+seasonNames_southPacific = unique(subset(staticTable, basin == "South-Pacific")$seasonalFilter) # South Pacific
 
 
 ######## Following section shoudl not need to be updated
@@ -57,7 +63,9 @@ ui <- fluidPage(
       selectInput(
         inputId = "basin",
         label = "Basin:",
-        choices = c("North Atlantic" = 1, "Western Pacific" = 2, "Indian Ocean" = 3),
+        choices = c("North Atlantic" = 1, "Western Pacific" = 2, 
+                    "Indian Ocean" = 3, "SW Indian Ocean" = 4, 
+                    "SE Indian Ocean" = 5, "South Pacific" = 6),
         selected = 1  # Optional: set default
       ),
       uiOutput("seasonalFilter"),      # Dynamic UI for Seasonal Filter
@@ -129,7 +137,7 @@ ui <- fluidPage(
         column(4,
                div(
                  style = "background-color: #f0f8ff; padding: 15px; border-radius: 5px; height: 100%;",
-                 tags$small("Stomrs with MSW > 96 kt", style = "color: #333333;"), # previously "Major Hurricanes"
+                 tags$small("Storms with MSW > 96 kt", style = "color: #333333;"), # previously "Major Hurricanes"
                  tags$h2(textOutput("climatology_majorHurricanes"), style = "margin-top: 5px; color: #333333;")
                )
         )
@@ -154,7 +162,7 @@ ui <- fluidPage(
         column(4,
                div(
                  style = "background-color: #f0f8ff; padding: 15px; border-radius: 5px; height: 100%;",
-                 tags$small("Stomrs with MSW > 96 kt", style = "color: #333333;"), # previously "Major Hurricanes"
+                 tags$small("Storms with MSW > 96 kt", style = "color: #333333;"), # previously "Major Hurricanes"
                  tags$h2(textOutput("forecast_majorHurricanes"), style = "margin-top: 5px; color: #333333;")
                )
         )
@@ -240,6 +248,27 @@ server <- function(input, output, session) {
         choices = setNames(1:length(categoryNames_indianOcean), categoryNames_indianOcean),
         selected = 1
       )
+    } else if (input$basin == 4) {  #
+      selectInput(
+        inputId = "hurricaneCategory_ID",
+        label = "Category:",
+        choices = setNames(1:length(categoryNames_indianOcean_SW), categoryNames_indianOcean_SW),
+        selected = 1
+      )
+    } else if (input$basin == 5) {  #
+      selectInput(
+        inputId = "hurricaneCategory_ID",
+        label = "Category:",
+        choices = setNames(1:length(categoryNames_indianOcean_SE), categoryNames_indianOcean_SE),
+        selected = 1
+      )
+    } else if (input$basin == 6) {  # indian ocean
+      selectInput(
+        inputId = "hurricaneCategory_ID",
+        label = "Category:",
+        choices = setNames(1:length(categoryNames_southPacific), categoryNames_indianOcean),
+        selected = 1
+      )
     }
   })
   
@@ -250,6 +279,12 @@ server <- function(input, output, session) {
       return("western_pacific")
     } else if(input$basin == 3) {
       return("indian_ocean")
+    } else if(input$basin == 4) {
+      return("South-West indian_ocean")
+    } else if(input$basin == 5) {
+      return("South-East indian_ocean")
+    } else if(input$basin == 6) {
+      return("South-Pacific")
     } else {
       return("unknown_basin")
     }
@@ -353,6 +388,12 @@ server <- function(input, output, session) {
       thisSeason_out <- seasonNames_westernPacific[seasonal_filter]
     } else if (basin_value == 3) {
       thisSeason_out <- seasonNames_indianOcean[seasonal_filter]
+    } else if (basin_value == 4) {
+      thisSeason_out <- seasonNames_indianOcean_SW[seasonal_filter]
+    } else if (basin_value == 5) {
+      thisSeason_out <- seasonNames_indianOcean_SE[seasonal_filter]
+    } else if (basin_value == 6) {
+      thisSeason_out <- seasonNames_southPacific[seasonal_filter]
     } else {
       thisSeason_out <- "Unknown Basin"
     }

@@ -79,3 +79,51 @@ value,dataType,basin,metric,seasonalFilter
 3.2,Forecast,indian_ocean,all_storms,Oct21-Dec31
 1.2,Forecast,indian_ocean,hurricanes,Oct21-Dec31
 0,Forecast,indian_ocean,major_hurricanes,Oct21-Dec31
+13,Climatology,western_pacific,energy,Nov15-Dec31
+0.6,Climatology,western_pacific,all_storms,Nov15-Dec31
+0.2,Climatology,western_pacific,hurricanes,Nov15-Dec31
+0.1,Climatology,western_pacific,major_hurricanes,Nov15-Dec31
+5,Forecast,western_pacific,energy,Nov15-Dec31
+1.1,Forecast,western_pacific,all_storms,Nov15-Dec31
+0.5,Forecast,western_pacific,hurricanes,Nov15-Dec31
+0.3,Forecast,western_pacific,major_hurricanes,Nov15-Dec31
+4,Climatology,north_atlantic,energy,Nov15-Dec31
+0.1,Climatology,north_atlantic,all_storms,Nov15-Dec31
+0.1,Climatology,north_atlantic,hurricanes,Nov15-Dec31
+0.1,Climatology,north_atlantic,major_hurricanes,Nov15-Dec31
+5,Forecast,north_atlantic,energy,Nov15-Dec31
+0.4,Forecast,north_atlantic,all_storms,Nov15-Dec31
+0.4,Forecast,north_atlantic,hurricanes,Nov15-Dec31
+0.2,Forecast,north_atlantic,major_hurricanes,Nov15-Dec31
+6.5,Climatology,indian_ocean,energy,Nov15-Dec31
+1.1,Climatology,indian_ocean,all_storms,Nov15-Dec31
+0.4,Climatology,indian_ocean,hurricanes,Nov15-Dec31
+0.1,Climatology,indian_ocean,major_hurricanes,Nov15-Dec31
+5.6,Forecast,indian_ocean,energy,Nov15-Dec31
+2.5,Forecast,indian_ocean,all_storms,Nov15-Dec31
+1,Forecast,indian_ocean,hurricanes,Nov15-Dec31
+0.5,Forecast,indian_ocean,major_hurricanes,Nov15-Dec31
+95.6,Climatology,South-West indian_ocean,energy,Nov15-May31
+2.1,Climatology,South-West indian_ocean,all_storms,Nov15-May31
+1.3,Climatology,South-West indian_ocean,hurricanes,Nov15-May31
+0.8,Climatology,South-West indian_ocean,major_hurricanes,Nov15-May31
+47.6,Forecast,South-West indian_ocean,energy,Nov15-May31
+2,Forecast,South-West indian_ocean,all_storms,Nov15-May31
+1.5,Forecast,South-West indian_ocean,hurricanes,Nov15-May31
+1,Forecast,South-West indian_ocean,major_hurricanes,Nov15-May31
+54.2,Climatology,South-East indian_ocean,energy,Nov15-May31
+1.6,Climatology,South-East indian_ocean,all_storms,Nov15-May31
+0.8,Climatology,South-East indian_ocean,hurricanes,Nov15-May31
+0.6,Climatology,South-East indian_ocean,major_hurricanes,Nov15-May31
+37.6,Forecast,South-East indian_ocean,energy,Nov15-May31
+1.4,Forecast,South-East indian_ocean,all_storms,Nov15-May31
+1,Forecast,South-East indian_ocean,hurricanes,Nov15-May31
+1,Forecast,South-East indian_ocean,major_hurricanes,Nov15-May31
+74.8,Climatology,South-Pacific,energy,Nov15-May31
+5.8,Climatology,South-Pacific,all_storms,Nov15-May31
+2.3,Climatology,South-Pacific,hurricanes,Nov15-May31
+1.4,Climatology,South-Pacific,major_hurricanes,Nov15-May31
+61.2,Forecast,South-Pacific,energy,Nov15-May31
+5,Forecast,South-Pacific,all_storms,Nov15-May31
+1,Forecast,South-Pacific,hurricanes,Nov15-May31
+0.6,Forecast,South-Pacific,major_hurricanes,Nov15-May31
