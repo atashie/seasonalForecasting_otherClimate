@@ -8,7 +8,7 @@ unformattedCsv = TRUE # boolean to trigger reformatting to standard out
   # ensure this name exactly matches the seasonalFilter column in "basinLevelValues.csv"	
 seasonName = "Nov15-May31"	# previous iterations: JJASON Aug10-Nov30 Sep1-Dec31 Sep20-Nov30  01-Oct Oct01-Dec31 Oct21-Dec31
   # ensure this name exactly matches the basin column in "basinLevelValues.csv"  
-basinName = "South-West indian_ocean"  # previous iterations north_atlantic, western_pacific, indian_ocean, South-East indian_ocean, South-West indian_ocean, South-Pacific
+basinName = "South-Pacific"  # previous iterations north_atlantic, western_pacific, indian_ocean, South-East indian_ocean, South-West indian_ocean, South-Pacific
 
 
 ## end of section that needs to be updated
@@ -35,6 +35,11 @@ if(unformattedCsv){															  # triggers when data is not pre-formatted
 	if(basinName == "north_atlantic"){
 		new_df = subset(new_df, V2 >= -102); print("subsetting df"); print(new_df)
 	}
+	if(basinName == "South-Pacific"){
+	  new_df$V2[which(new_df$V2 >= 180)] = new_df$V2[which(new_df$V2 >= 180)] - 360
+	  new_df = subset(new_df, V2 < 180); print("subsetting df"); print(new_df)
+	}
+	
 	summaryOutput_df = data.table(Lat = NULL, Lon = NULL, Season = NULL, Ocean_Basin = NULL, Cat = NULL, Climatology = NULL, Forecast = NULL)
 	thisCat = 0
 	while(TRUE){

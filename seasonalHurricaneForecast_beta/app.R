@@ -206,23 +206,46 @@ server <- function(input, output, session) {
         inputId = "seasonalFilter_ID",
         label = "Timeframe of Forecast:", # previously "Season"
         choices = setNames(1:length(seasonNames_northernAtlantic), seasonNames_northernAtlantic),
-        selected = 1  # Optional: set default
+        selected = length(seasonNames_northernAtlantic)  # Optional: set default
       )
     } else if (input$basin == 2) {
       selectInput(
         inputId = "seasonalFilter_ID",
         label = "Timeframe of Forecast:", # previously "Season"
         choices = setNames(1:length(seasonNames_westernPacific), seasonNames_westernPacific),
-        selected = 1  # Optional: set default
+        selected = length(seasonNames_westernPacific)  # Optional: set default
       )
     } else if (input$basin == 3) {
       selectInput(
         inputId = "seasonalFilter_ID",
         label = "Timeframe of Forecast:", # previously "Season"
         choices = setNames(1:length(seasonNames_indianOcean), seasonNames_indianOcean),
-        selected = 1  # Optional: set default
+        selected = length(seasonNames_indianOcean)  # Optional: set default
+      )
+    } else if (input$basin == 4) {
+      selectInput(
+        inputId = "seasonalFilter_ID",
+        label = "Timeframe of Forecast:", # previously "Season"
+        choices = setNames(1:length(seasonNames_indianOcean_SW), seasonNames_indianOcean_SW),
+        selected = length(categoryNames_indianOcean_SW)  # Optional: set default
+      )
+    } else if (input$basin == 5) {
+      selectInput(
+        inputId = "seasonalFilter_ID",
+        label = "Timeframe of Forecast:", # previously "Season"
+        choices = setNames(1:length(seasonNames_indianOcean_SE), seasonNames_indianOcean_SE),
+        selected = length(categoryNames_indianOcean_SE)  # Optional: set default
+      )
+    } else if (input$basin == 6) {
+      selectInput(
+        inputId = "seasonalFilter_ID",
+        label = "Timeframe of Forecast:", # previously "Season"
+        choices = setNames(1:length(seasonNames_southPacific), seasonNames_southPacific),
+        selected = length(categoryNames_southPacific)  # Optional: set default
       )
     }
+    
+    
   })
   
   # **Dynamic UI for hurricaneCategory based on basin selection (New)**
@@ -266,7 +289,7 @@ server <- function(input, output, session) {
       selectInput(
         inputId = "hurricaneCategory_ID",
         label = "Category:",
-        choices = setNames(1:length(categoryNames_southPacific), categoryNames_indianOcean),
+        choices = setNames(1:length(categoryNames_southPacific), categoryNames_southPacific),
         selected = 1
       )
     }
